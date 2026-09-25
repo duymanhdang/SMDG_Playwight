@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Report Center — SimpleMDG Automation Hub</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/shared.css">
+<!--
+  v1.8.0 part 2 — the app's ONE deliberate exception to its otherwise
+  zero-CDN/zero-build-step philosophy. A senior-design review found the
+  hand-rolled inline-SVG charts here "visually bare-bones" (flat colors, no
+  gradient fill, no curve smoothing, no entrance animation, and browser-
+  native <title> tooltips instead of styled ones) — reproducing all of that
+  by hand in SVG was judged not worth it vs. one small, well-known,
+  pinned-version library. Chart.js was chosen over ApexCharts: smaller
+  payload for a line+donut+bar mix, first-class gradient-fill and
+  tension/smoothing support, and a plain UMD build that needs no bundler.
+  Pinned to an exact version (not @latest) with a computed Subresource
+  Integrity hash so an unexpected file swap on the CDN can't silently
+  execute different code. `onerror` sets a flag `window.__chartLibFailed`
+  so chart init code below can degrade to a clear message instead of a
+  blank/broken page if the CDN is unreachable (this app usually runs fully
+  local-first/offline).
+-->
+<script
+  src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"
+  integrity="sha384-NrKB+u6Ts6AtkIhwPixiKTzgSKNblyhlk0Sohlgar9UHUBzai/sgnNNWWd291xqt"
+  crossorigin="anonymous"
+  onerror="window.__chartLibFailed = true;"
+></script>
+<style>
+.filters { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.filters select {
+  padding: 6px 10px; border: 1px solid var(--border-md); border-radius: var(--r);
+  background: var(--surface); color: var(--text); font-size: var(--text-sm); font-family: var(--sans);
+}
+
+.stat-grid { grid-template-columns: repeat(6, 1fr); padding: var(--space-4); }
+
+/* Report Center + Recent Executions side-by-side (mirrors Overview's .two-col) */
+.rc-layout { display: grid; grid-template-columns: 1fr 320px; gap: var(--space-4); align-items: start; }
+@media (max-width: 980px) { .rc-layout { grid-template-columns: 1fr; } }
+.rc-main { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+
+.exec-row { display: flex; align-items: center; gap: var(--space-3); padding: 11px 4px; border-bottom: 1px solid var(--border); }
+.exec-row:last-child { border-bottom: none; }
+.exec-status-icon { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.exec-status-icon.done { background: var(--green-bg); color: var(--green); }
+.exec-status-icon.failed { background: var(--red-bg); color: var(--red); }
+.exec-status-icon.running { background: var(--orange-bg); color: var(--orange); }
+.exec-status-icon.interrupted { background: var(--gray-bg); color: var(--gray); }
+.exec-info { flex: 1; min-width: 0; }
+.exec-title { font-size: var(--text-sm); font-weight: 600; color: var(--text); }
+.exec-sub { font-size: var(--text-xs); color: var(--text-4); margin-top: 1px; }
+.exec-time { font-size: var(--text-2xs); color: var(--text-4); white-space: nowrap; text-align: right; }
+
+/* 4-column AI summary layout (Overall Health / Notable Trends / Top Risk Areas / Recommendations) */
+.ai-summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-4); }
+@media (max-width: 1100px) { .ai-summary-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 640px) { .ai-summary-grid { grid-template-columns: 1fr; } }
+.ai-summary-grid .ai-summary-section { margin-bottom: 0; }
+
+.trend-tooltip { font-size: var(--text-2xs); fill: var(--text-3); font-family: var(--mono); }
+.trend-line { fill: none; stroke: var(--blue); stroke-width: 2; }
+.trend-dot { fill: var(--blue); }
+.trend-axis { stroke: var(--border); stroke-width: 1; }
+
+.charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 0 16px 16px; }
+@media (max-width: 900px) { .charts-row { grid-template-columns: 1fr; } }
+.donut-legend { display: flex; flex-direction: column; gap: 6px; font-size: var(--text-sm); margin-top: 10px; }
+.donut-legend-row { display: flex; align-items: center; gap: 8px; }
+.donut-swatch { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+.donut-wrap { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+
+.suite-bar-row { display: flex; align-items: center; gap: 10px; font-size: var(--text-sm); padding: 3px 0; }
+.suite-bar-name { width: 140px; flex-shrink: 0; color: var(--text-2); font-weight: 500; }
+.suite-bar-track { flex: 1; height: 10px; background: var(--surface-3); border-radius: 5px; overflow: hidden; }
+.suite-bar-fill { height: 100%; border-radius: 5px; }
+.suite-bar-val { width: 40px; text-align: right; color: var(--text-3); font-family: var(--mono); }
+
+.ai-panel-actions { display: flex; align-items: center; gap: 10px; }
+.ai-summary-box { padding: 14px 16px; }
+.ai-summary-label { font-weight: 700; color: var(--blue); text-transform: uppercase; font-size: var(--text-2xs); letter-spacing: .05em; margin-bottom: 8px; }
+.ai-summary-warn { font-weight: 400; text-transform: none; color: var(--amber); letter-spacing: 0; margin-left: 6px; }
+.ai-summary-section { margin-bottom: 10px; font-size: var(--text-sm); color: var(--text-2); }
+.ai-summary-section strong { color: var(--text); }
+.ai-summary-section ul { margin: 4px 0 0 18px; }
+.disabled-notice { display: flex; align-items: center; gap: 12px; padding: 20px; }
+.disabled-icon { width: 40px; height: 40px; border-radius: 10px; background: var(--orange-bg); color: var(--orange); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+
+/* Chart interactivity (v1.5.0 item 6) */
+.trend-hit { cursor: pointer; }
+.donut-arc { cursor: pointer; }
+.donut-legend-row.clickable { cursor: pointer; }
+.donut-legend-row.clickable:hover { color: var(--blue); }
+</style>
+</head>
+<body>
+<div id="shell-slot"></div>
+
+<div class="main">
+  <div class="topbar">
+    <div>
+      <div class="topbar-title">Report Center</div>
+      <div class="topbar-sub">Aggregate test statistics, trend charts, and AI-powered QA summaries</div>
+    </div>
+    <div class="ai-panel-actions">
+      <a class="btn-secondary" id="btnExportReport" href="#" target="_blank">Export Report</a>
+    </div>
+  </div>
+
+  <div class="page-body">
+    <div class="panel">
+      <div class="panel-head">
+        <span class="panel-title">Filters</span>
+        <div class="filters">
+          <select id="fDays" onchange="loadAll()">
+            <option value="7">Last 7 days</option>
+            <option value="14">Last 14 days</option>
+            <option value="30" selected>Last 30 days</option>
+            <option value="90">Last 90 days</option>
+          </select>
+          <select id="fSuite" onchange="loadAll()"><option value="">All suites</option></select>
+        </div>
+      </div>
+    </div>
+
+    <div id="statGrid" class="stat-grid">
+      <div class="skeleton-stat"><div class="skeleton skeleton-line w-40"></div><div class="skeleton skeleton-line w-60"></div><div class="skeleton skeleton-line w-40"></div></div>
+      <div class="skeleton-stat"><div class="skeleton skeleton-line w-40"></div><div class="skeleton skeleton-line w-60"></div><div class="skeleton skeleton-line w-40"></div></div>
+      <div class="skeleton-stat"><div class="skeleton skeleton-line w-40"></div><div class="skeleton skeleton-line w-60"></div><div class="skeleton skeleton-line w-40"></div></div>
+    </div>
+
+    <div class="rc-layout">
+      <div class="rc-main">
+        <div class="panel">
+          <div class="panel-head"><span class="panel-title">Pass rate trend</span></div>
+          <div class="panel-body" id="trendBody"><div class="skeleton skeleton-chart"></div></div>
+        </div>
+
+        <div class="charts-row" style="padding:0;margin:0">
+          <div class="panel">
+            <div class="panel-head"><span class="panel-title">Result breakdown</span></div>
+            <div class="panel-body" id="donutBody"><div class="skeleton skeleton-chart donut"></div></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><span class="panel-title">Pass rate by suite</span></div>
+            <div class="panel-body" id="suiteBarBody"><div class="skeleton skeleton-chart"></div></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><span class="panel-title">Suite / business-process drill-down</span></div>
+          <div id="suiteTableBody" style="padding:0"><div class="spinner"></div></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <span class="panel-title">AI-powered QA summary</span>
+            <button class="btn-secondary" id="btnAiSummary" onclick="loadAiSummary()">Generate summary</button>
+          </div>
+          <div class="panel-body" id="aiSummaryBody">
+            <div class="empty">Click "Generate summary" to have AI summarize the current filters.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <span class="panel-title">Recent Executions</span>
+          <a class="btn-secondary" href="/execution-center.html">View all →</a>
+        </div>
+        <div id="recentExecBody" style="padding:6px 14px">
+          <div class="skeleton-row"><div class="skeleton skeleton-line c1"></div><div class="skeleton skeleton-line c2"></div><div class="skeleton skeleton-line c6"></div></div>
+          <div class="skeleton-row"><div class="skeleton skeleton-line c1"></div><div class="skeleton skeleton-line c2"></div><div class="skeleton skeleton-line c6"></div></div>
+          <div class="skeleton-row"><div class="skeleton skeleton-line c1"></div><div class="skeleton skeleton-line c2"></div><div class="skeleton skeleton-line c6"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/shared.js"></script>
+<script src="/deep-link.js"></script>
+<script>
+let aiEnabled = false;
+
+// Results' own filter statuses are run-level (running/done/failed/
+// interrupted/cancelled), not the donut's per-test statuses — map the two
+// donut keys that have an obvious equivalent, and fall back to an
+// unfiltered link (still useful — it's the run history page) otherwise.
+const DONUT_TO_RUN_STATUS = { failed: 'failed' };
+function goToResultsFilteredBy(donutKey) {
+  const runStatus = DONUT_TO_RUN_STATUS[donutKey];
+  location.href = runStatus ? `/results.html?status=${encodeURIComponent(runStatus)}` : '/results.html';
+}
+const STATUS_COLOR_VAR = { passed: '--green', failed: '--red', flaky: '--orange', skipped: '--gray', quarantined: '--purple' };
+
+function escapeHtml(str) {
+  return String(str == null ? '' : str).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+}
+function cssVar(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+function fmtDuration(ms) {
+  if (!ms || ms < 0) return '—';
+  const s = Math.round(ms / 1000);
+  return s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${s % 60}s`;
+}
+function fmtDate(ms) {
+  if (!ms) return 'Never';
+  return new Date(ms).toLocaleString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+async function populateSuiteFilter() {
+  try {
+    const data = await fetch('/api/suites').then(r => r.json());
+    if (!data.ok) return;
+    const sel = $('fSuite');
+    data.suites.forEach(s => {
+      const opt = document.createElement('option');
+      opt.value = s.id; opt.textContent = s.short;
+      sel.appendChild(opt);
+    });
+  } catch (_) {}
+}
+
+const REPORT_CENTER_DEEP_LINK_SPEC = {
+  days:  { key: 'days',  default: '30' },
+  suite: { key: 'suite', default: '' },
+};
+function restoreFiltersFromUrl() {
+  const state = parseDeepLinkParams(new URLSearchParams(location.search), REPORT_CENTER_DEEP_LINK_SPEC);
+  if (state.days) $('fDays').value = state.days;
+  if (state.suite) $('fSuite').value = state.suite;
+}
+function query() {
+  const qs = new URLSearchParams();
+  qs.set('days', $('fDays').value);
+  if ($('fSuite').value) qs.set('suite', $('fSuite').value);
+  syncDeepLinkState({ days: $('fDays').value, suite: $('fSuite').value }, REPORT_CENTER_DEEP_LINK_SPEC);
+  return qs;
+}
+
+function updateExportLink() {
+  $('btnExportReport').href = `/api/reports/print?${query()}`;
+}
+
+// ─────────────────────────────────────────
+// Overview stat cards
+// ─────────────────────────────────────────
+let lastOverview = null;
+
+async function loadOverview() {
+  try {
+    const data = await fetch(`/api/reports/overview?${query()}`).then(r => r.json());
+    if (!data.ok) throw new Error(data.error);
+    lastOverview = data;
+    renderStatGrid(data);
+    renderTrend(data.timeSeries);
+    renderDonut(data);
+    renderSuiteBars(data.suiteBreakdown);
+    renderSuiteTable(data.suiteBreakdown);
+    loadRecentExecutions();
+  } catch (err) {
+    $('statGrid').innerHTML = `<div class="empty">⚠ ${err.message}</div>`;
+  }
+}
+
+// v1.9.0 — icon + delta stat cards, same pattern as Overview's
+// loadStats()/ICONS (shared.css .stat-icon-row/.stat-value/.stat-delta).
+// Deltas come from computeDeltas() (report-aggregator.js) vs. the
+// same-length prior period, e.g. days=30 -> the 30 days before that.
+const STAT_ICONS = {
+  totalRuns:       '<svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>',
+  totalExecutions: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="20 6 9 17 4 12"/></svg>',
+  passRate:        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg>',
+  failed:          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>',
+  flaky:           '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M4 4v5h5"/><path d="M20 20v-5h-5"/><path d="M5 9a7 7 0 0112-3M19 15a7 7 0 01-12 3"/></svg>',
+  avgDurationMs:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>',
+};
+
+function deltaHtml(key, value, positiveIsGood) {
+  if (value === null || value === undefined) return '<span class="stat-delta" style="color:var(--text-4)">No data for prior period</span>';
+  const good = positiveIsGood ? value >= 0 : value <= 0;
+  const arrow = value >= 0 ? '↑' : '↓';
+  return `<span class="stat-delta ${good ? 'up' : 'down'}">${arrow} ${Math.abs(value)}% vs prior period</span>`;
+}
+
+function renderStatGrid(d) {
+  const deltas = d.deltas || {};
+  const cards = [
+    { key: 'totalRuns',       label: 'Runs',        value: d.totalRuns, color: 'var(--blue)',   delta: deltaHtml('totalRuns', deltas.totalRuns, true) },
+    { key: 'totalExecutions', label: 'Executions',   value: d.totalExecutions, color: 'var(--blue)', delta: deltaHtml('totalExecutions', deltas.totalExecutions, true) },
+    { key: 'passRate',        label: 'Pass rate',    value: d.passRate === null ? '—' : d.passRate + '%', color: 'var(--green)', delta: deltaHtml('passRate', deltas.passRate, true) },
+    { key: 'failed',          label: 'Failed',       value: d.failed, color: 'var(--red)',    delta: deltaHtml('failed', deltas.failed, false) },
+    { key: 'flaky',           label: 'Flaky',        value: d.flaky, color: 'var(--orange)',  delta: deltaHtml('flaky', deltas.flaky, false) },
+    { key: 'avgDurationMs',   label: 'Avg duration', value: fmtDuration(d.avgDurationMs), color: 'var(--text-3)', delta: deltaHtml('avgDurationMs', deltas.avgDurationMs, false) },
+  ];
+  $('statGrid').innerHTML = cards.map(c => `
+    <div class="stat-card">
+      <div class="stat-icon-row">
+        <div class="stat-icon" style="--stat-color:${c.color}">${STAT_ICONS[c.key]}</div>
+        <div class="stat-label">${c.label}</div>
+      </div>
+      <div class="stat-value">${c.value}</div>
+      ${c.delta}
+    </div>`).join('');
+}
+
+// ─────────────────────────────────────────
+// v1.8.0 part 2 — Chart.js-driven charts (replacing the old hand-rolled
+// inline SVG). Chart instances are kept module-scope so they can be
+// destroyed/rebuilt on data refresh and on theme toggle (Chart.js reads
+// colors once at draw time from computed CSS custom properties — it does
+// NOT react to a CSS cascade change on its own <canvas>, so a light/dark
+// toggle needs an explicit re-render, wired via shared.js's
+// 'mdg:themechange' event below).
+// ─────────────────────────────────────────
+let trendChart = null, donutChart = null, suiteBarChart = null;
+
+function chartsAvailable() {
+  return !window.__chartLibFailed && typeof window.Chart !== 'undefined';
+}
+function chartUnavailableHtml() {
+  return '<div class="empty">⚠ Charts unavailable offline — the Chart.js library could not be loaded from its CDN. Statistics are still available in the tables below.</div>';
+}
+
+function suiteRateColorVar(rate) {
+  if (rate === null) return '--gray';
+  if (rate >= 90) return '--green';
+  if (rate >= 70) return '--orange';
+  return '--red';
+}
+
+function renderTrend(points) {
+  if (!points || !points.length) {
+    $('trendBody').innerHTML = '<div class="empty">No finished runs in this time range yet.</div>';
+    return;
+  }
+  if (!chartsAvailable()) { $('trendBody').innerHTML = chartUnavailableHtml(); return; }
+
+  $('trendBody').innerHTML = '<canvas id="trendCanvas" height="110"></canvas>';
+  const ctx = $('trendCanvas').getContext('2d');
+  const blue = cssVar('--blue');
+  const gradient = ctx.createLinearGradient(0, 0, 0, 110);
+  gradient.addColorStop(0, `color-mix(in oklch, ${blue} 35%, transparent)`);
+  gradient.addColorStop(1, `color-mix(in oklch, ${blue} 0%, transparent)`);
+
+  if (trendChart) trendChart.destroy();
+  trendChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: points.map(p => p.date.slice(5)),
+      datasets: [{
+        label: 'Pass rate',
+        data: points.map(p => p.passRate),
+        borderColor: blue,
+        backgroundColor: gradient,
+        fill: true,
+        tension: 0.35, // smooth curve interpolation, replacing the old straight-line path
+        pointRadius: 3,
+        pointHoverRadius: 5,
+        pointBackgroundColor: blue,
+        borderWidth: 2,
+      }],
+    },
+    options: {
+      responsive: true,
+      animation: { duration: 500, easing: 'easeOutCubic' }, // entrance animation
+      scales: {
+        y: { min: 0, max: 100, ticks: { callback: v => v + '%', color: cssVar('--text-3') }, grid: { color: cssVar('--border') } },
+        x: { ticks: { color: cssVar('--text-3') }, grid: { display: false } },
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: cssVar('--surface-2'), titleColor: cssVar('--text'), bodyColor: cssVar('--text-2'),
+          borderColor: cssVar('--border-md'), borderWidth: 1, padding: 10, cornerRadius: 8, displayColors: false,
+          callbacks: {
+            title: (items) => points[items[0].dataIndex].date,
+            label: (item) => {
+              const p = points[item.dataIndex];
+              return `${p.passRate ?? '—'}% pass rate, ${p.runs} run(s)`;
+            },
+          },
+        },
+      },
+    },
+  });
+}
+
+function renderDonut(d) {
+  const segments = [
+    { key: 'passed',      label: 'Passed',      value: d.passed },
+    { key: 'failed',      label: 'Failed',      value: d.failed },
+    { key: 'flaky',       label: 'Flaky',       value: d.flaky },
+    { key: 'skipped',     label: 'Skipped',     value: d.skipped },
+    { key: 'quarantined', label: 'Quarantined', value: d.quarantinedSkip },
+  ].filter(s => s.value > 0);
+
+  const total = segments.reduce((a, s) => a + s.value, 0);
+  if (!total) {
+    $('donutBody').innerHTML = '<div class="empty">No test executions in this time range yet.</div>';
+    return;
+  }
+  if (!chartsAvailable()) { $('donutBody').innerHTML = chartUnavailableHtml(); return; }
+
+  // v1.5.0 item 6 — click-to-filter, preserved: clicking a segment (or its
+  // legend row) deep-links to Results filtered by that status. Donut
+  // statuses are per-TEST status while Results' own filter is per-RUN
+  // status, so this is "jump to the closest matching filtered view", not
+  // an exact same-domain crossfilter — same trade-off as the old SVG version.
+  const legend = segments.map(s => `
+    <div class="donut-legend-row clickable" onclick="goToResultsFilteredBy('${s.key}')" title="View ${s.label} in Results">
+      <span class="donut-swatch" style="background:var(${STATUS_COLOR_VAR[s.key]})"></span>
+      <span>${s.label}</span>
+      <span style="color:var(--text-3);font-family:var(--mono);margin-left:auto">${s.value} (${Math.round(s.value / total * 100)}%)</span>
+    </div>`).join('');
+
+  $('donutBody').innerHTML = `
+    <div class="donut-wrap">
+      <div style="position:relative;width:180px;height:180px">
+        <canvas id="donutCanvas" width="180" height="180"></canvas>
+        <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none">
+          <div style="font-family:var(--mono);font-size:20px;font-weight:700;color:var(--text)">${total}</div>
+          <div style="font-size:10px;color:var(--text-4)">executions</div>
+        </div>
+      </div>
+      <div class="donut-legend">${legend}</div>
+    </div>`;
+
+  const ctx = $('donutCanvas').getContext('2d');
+  if (donutChart) donutChart.destroy();
+  donutChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: segments.map(s => s.label),
+      datasets: [{
+        data: segments.map(s => s.value),
+        backgroundColor: segments.map(s => cssVar(STATUS_COLOR_VAR[s.key])),
+        borderColor: cssVar('--surface'),
+        borderWidth: 2,
+      }],
+    },
+    options: {
+      responsive: false,
+      cutout: '68%',
+      animation: { animateRotate: true, animateScale: true, duration: 600, easing: 'easeOutCubic' }, // entrance animation
+      onClick: (evt, elements) => {
+        if (!elements.length) return;
+        goToResultsFilteredBy(segments[elements[0].index].key);
+      },
+      onHover: (evt, elements) => { evt.native.target.style.cursor = elements.length ? 'pointer' : 'default'; },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: cssVar('--surface-2'), titleColor: cssVar('--text'), bodyColor: cssVar('--text-2'),
+          borderColor: cssVar('--border-md'), borderWidth: 1, padding: 10, cornerRadius: 8, displayColors: true,
+          callbacks: {
+            label: (item) => {
+              const s = segments[item.dataIndex];
+              return `${s.label}: ${s.value} (${Math.round(s.value / total * 100)}%) — click to view in Results`;
+            },
+          },
+        },
+      },
+    },
+  });
+}
+
+function renderSuiteBars(suiteBreakdown) {
+  if (!suiteBreakdown || !suiteBreakdown.length) {
+    $('suiteBarBody').innerHTML = '<div class="empty">No suites with runs in this time range.</div>';
+    return;
+  }
+  if (!chartsAvailable()) { $('suiteBarBody').innerHTML = chartUnavailableHtml(); return; }
+
+  const h = Math.max(160, suiteBreakdown.length * 34);
+  $('suiteBarBody').innerHTML = `<canvas id="suiteBarCanvas" height="${h}"></canvas>`;
+  const ctx = $('suiteBarCanvas').getContext('2d');
+  if (suiteBarChart) suiteBarChart.destroy();
+  suiteBarChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: suiteBreakdown.map(s => s.suiteName),
+      datasets: [{
+        data: suiteBreakdown.map(s => s.passRate ?? 0),
+        backgroundColor: suiteBreakdown.map(s => cssVar(suiteRateColorVar(s.passRate))),
+        borderRadius: 5,
+        barThickness: 16,
+      }],
+    },
+    options: {
+      indexAxis: 'y', // horizontal bar chart
+      responsive: true,
+      animation: { duration: 500, easing: 'easeOutCubic' },
+      scales: {
+        x: { min: 0, max: 100, ticks: { callback: v => v + '%', color: cssVar('--text-3') }, grid: { color: cssVar('--border') } },
+        y: { ticks: { color: cssVar('--text-2') }, grid: { display: false } },
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: cssVar('--surface-2'), titleColor: cssVar('--text'), bodyColor: cssVar('--text-2'),
+          borderColor: cssVar('--border-md'), borderWidth: 1, padding: 10, cornerRadius: 8, displayColors: false,
+          callbacks: {
+            label: (item) => {
+              const s = suiteBreakdown[item.dataIndex];
+              return s.passRate === null ? '—' : `${s.passRate}% pass rate`;
+            },
+          },
+        },
+      },
+    },
+  });
+}
+
+// Re-render all three charts on theme toggle (light/dark) — Chart.js baked
+// the colors in at draw time via cssVar(), so a CSS-variable change alone
+// won't repaint an existing canvas.
+document.addEventListener('mdg:themechange', () => {
+  if (lastOverview) {
+    renderTrend(lastOverview.timeSeries);
+    renderDonut(lastOverview);
+    renderSuiteBars(lastOverview.suiteBreakdown);
+  }
+});
+
+// ─────────────────────────────────────────
+// Recent Executions — same list pattern as Overview's loadRecentExecutions(),
+// scoped to whatever suite filter is active here (Overview's is unfiltered).
+// ─────────────────────────────────────────
+function statusIcon(status) {
+  if (status === 'running') return { cls: 'running', svg: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/></svg>' };
+  if (status === 'done' || status === 'passed') return { cls: 'done', svg: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>' };
+  if (status === 'interrupted') return { cls: 'interrupted', svg: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>' };
+  return { cls: 'failed', svg: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' };
+}
+
+async function loadRecentExecutions() {
+  try {
+    const params = new URLSearchParams({ limit: '6' });
+    if ($('fSuite').value) params.set('suite', $('fSuite').value);
+    const data = await fetch(`/api/runs/history?${params}`).then(r => r.json());
+    if (!data.ok) throw new Error(data.error);
+    if (!data.runs.length) {
+      $('recentExecBody').innerHTML = '<div class="empty">No runs in this time range yet.</div>';
+      return;
+    }
+    $('recentExecBody').innerHTML = data.runs.map(r => {
+      const icon = statusIcon(r.status);
+      const label = (r.label || r.id).replace(/^\[(SUITE|SPEC)\]\s*/, '');
+      return `<div class="exec-row" style="cursor:pointer" onclick="location.href='/results.html?id=${r.id}'">
+        <div class="exec-status-icon ${icon.cls}">${icon.svg}</div>
+        <div class="exec-info">
+          <div class="exec-title">${escapeHtml(label)}</div>
+          <div class="exec-sub">${escapeHtml(r.suiteName || '')} · ${r.passed || 0}✓ ${r.failed || 0}✗</div>
+        </div>
+        <div class="exec-time">${fmtDuration(r.endTime && r.startTime ? r.endTime - r.startTime : null)}</div>
+      </div>`;
+    }).join('');
+  } catch (err) {
+    $('recentExecBody').innerHTML = `<div class="empty">⚠ ${err.message}</div>`;
+  }
+}
+
+// ─────────────────────────────────────────
+// Suite drill-down table — links out to the existing Results page (filtered
+// run history), not a rebuilt browsing UI.
+// ─────────────────────────────────────────
+function renderSuiteTable(suiteBreakdown) {
+  if (!suiteBreakdown || !suiteBreakdown.length) {
+    $('suiteTableBody').innerHTML = '<div class="empty">No suites with runs in this time range.</div>';
+    return;
+  }
+  $('suiteTableBody').innerHTML = `<table>
+    <thead><tr>
+      <th style="width:34%">Suite</th><th style="width:16%">Runs</th><th style="width:18%">Pass rate</th>
+      <th style="width:20%">Last run</th><th style="width:12%;text-align:right">Drill down</th>
+    </tr></thead>
+    <tbody>
+      ${suiteBreakdown.map(s => `
+        <tr>
+          <td class="col-mono">${escapeHtml(s.suiteName)}</td>
+          <td>${s.runs}</td>
+          <td>${s.passRate === null ? '—' : s.passRate + '%'}</td>
+          <td style="color:var(--text-3)">${fmtDate(s.lastRunTime)}</td>
+          <td style="text-align:right">
+            <a class="btn-tiny" href="/results.html?suite=${encodeURIComponent(s.suiteName)}">View runs</a>
+          </td>
+        </tr>`).join('')}
+    </tbody>
+  </table>`;
+}
+
+// ─────────────────────────────────────────
+// AI-powered QA summary
+// ─────────────────────────────────────────
+function renderAiDisabled() {
+  $('aiSummaryBody').innerHTML = `
+    <div class="disabled-notice">
+      <div class="disabled-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4z"/></svg>
+      </div>
+      <div>
+        <div style="font-weight:700;font-size:13px">AI summary is not enabled yet</div>
+        <div style="font-size:12px;color:var(--text-4);margin-top:2px">Configure a Groq API key on <a href="/settings.html" style="color:var(--blue)">Settings</a> to generate QA summaries here.</div>
+      </div>
+    </div>`;
+  const btn = $('btnAiSummary');
+  btn.disabled = true;
+  btn.title = 'AI is not enabled — configure a Groq API key on Settings first.';
+}
+
+async function checkAiEnabled() {
+  try {
+    const data = await fetch('/api/settings').then(r => r.json());
+    aiEnabled = !!(data.ok && data.settings.aiEnabled && data.settings.aiKeySet);
+    if (!aiEnabled) renderAiDisabled();
+  } catch (_) {
+    aiEnabled = false;
+    renderAiDisabled();
+  }
+}
+
+async function loadAiSummary() {
+  if (!aiEnabled) { renderAiDisabled(); return; }
+  const btn = $('btnAiSummary');
+  btn.disabled = true;
+  const prevLabel = btn.textContent;
+  btn.textContent = 'Generating…';
+  $('aiSummaryBody').innerHTML = '<div class="spinner"></div>';
+  try {
+    const body = { days: Number($('fDays').value) };
+    if ($('fSuite').value) body.suite = $('fSuite').value;
+    const data = await fetch('/api/reports/ai-summary', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+    }).then(r => r.json());
+    if (!data.ok) throw new Error(data.error);
+    renderAiSummary(data.summary);
+  } catch (err) {
+    $('aiSummaryBody').innerHTML = `<div class="empty">⚠ ${err.message}</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = prevLabel;
+  }
+}
+
+function renderAiSummary(summary) {
+  $('aiSummaryBody').innerHTML = `
+    <div class="ai-summary-box">
+      <div class="ai-summary-label">AI-generated summary <span class="ai-summary-warn">verify before sharing</span></div>
+      <div class="ai-summary-grid">
+        <div class="ai-summary-section"><strong>Overall health</strong><div>${escapeHtml(summary.healthAssessment)}</div></div>
+        <div class="ai-summary-section"><strong>Notable trends</strong><div>${escapeHtml(summary.trends)}</div></div>
+        <div class="ai-summary-section"><strong>Top risk areas</strong><div>${escapeHtml(summary.riskAreas)}</div></div>
+        <div class="ai-summary-section">
+          <strong>Recommendations</strong>
+          <ul>${(summary.recommendations || []).map(r => `<li>${escapeHtml(r)}</li>`).join('') || '<li>—</li>'}</ul>
+        </div>
+      </div>
+    </div>`;
+}
+
+function loadAll() {
+  updateExportLink();
+  $('statGrid').innerHTML = `<div class="skeleton-stat"><div class="skeleton skeleton-line w-40"></div><div class="skeleton skeleton-line w-60"></div><div class="skeleton skeleton-line w-40"></div></div>`.repeat(3);
+  $('trendBody').innerHTML = '<div class="skeleton skeleton-chart"></div>';
+  $('donutBody').innerHTML = '<div class="skeleton skeleton-chart donut"></div>';
+  $('suiteBarBody').innerHTML = '<div class="skeleton skeleton-chart"></div>';
+  $('suiteTableBody').innerHTML = '<div class="spinner"></div>';
+  $('recentExecBody').innerHTML = '<div class="spinner"></div>';
+  loadOverview();
+}
+
+function onShellReady() {
+  Promise.all([populateSuiteFilter(), checkAiEnabled()]).then(() => {
+    restoreFiltersFromUrl(); // after suite <option>s exist, so ?suite= can actually match one
+    loadAll();
+  });
+}
+initShell('report-center');
+</script>
+</body>
+</html>

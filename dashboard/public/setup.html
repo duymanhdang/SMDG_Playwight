@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Setup — SimpleMDG Automation Hub</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/shared.css">
+<style>
+.setup-wrap { max-width: 780px; display: flex; flex-direction: column; gap: 16px; }
+.setup-progress-row { display: flex; align-items: center; gap: 14px; }
+.setup-progress-track { flex: 1; height: 10px; background: var(--surface-3); border-radius: 5px; overflow: hidden; }
+.setup-progress-fill { height: 100%; border-radius: 5px; background: var(--green); transition: width .2s var(--ease); }
+.setup-progress-label { font-size: 12.5px; font-weight: 700; font-family: var(--mono); white-space: nowrap; }
+
+.step-card {
+  border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface);
+  padding: 16px; display: flex; gap: 14px; align-items: flex-start;
+}
+.step-icon { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-weight: 700; font-size: 14px; }
+.step-icon.ok { background: var(--green-bg); color: var(--green); }
+.step-icon.warn { background: var(--orange-bg); color: var(--orange); }
+.step-icon.todo { background: var(--surface-3); color: var(--text-4); }
+.step-body { flex: 1; min-width: 0; }
+.step-title-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.step-title { font-size: 13.5px; font-weight: 700; }
+.step-optional-badge { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; padding: 2px 7px; border-radius: 999px; background: var(--surface-3); color: var(--text-4); }
+.step-detail { font-size: 12px; color: var(--text-3); margin-top: 4px; line-height: 1.5; }
+.step-fix { margin-top: 10px; }
+.code-snippet {
+  font-family: var(--mono); font-size: 11.5px; background: var(--surface-3); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 10px 12px; white-space: pre; overflow-x: auto; color: var(--text-2);
+}
+.step-actions { display: flex; gap: 8px; margin-top: 10px; align-items: center; flex-wrap: wrap; }
+.copy-status { font-size: 11px; color: var(--green); }
+.ack-row { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-2); margin-top: 10px; }
+</style>
+</head>
+<body>
+<div id="shell-slot"></div>
+
+<div class="main">
+  <div class="topbar">
+    <div>
+      <div class="topbar-title">Setup</div>
+      <div class="topbar-sub">A guided checklist for the integrations this hub depends on for full value</div>
+    </div>
+  </div>
+
+  <div class="page-body">
+  <div class="setup-wrap">
+
+    <div class="panel">
+      <div class="panel-body">
+        <div class="setup-progress-row">
+          <div class="setup-progress-track"><div class="setup-progress-fill" id="progressFill" style="width:0%"></div></div>
+          <div class="setup-progress-label" id="progressLabel">0 / 0</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="stepsList"><div class="empty"><div class="spinner"></div></div></div>
+
+  </div>
+  </div>
+</div>
+
+<script src="/shared.js"></script>
+<script>
+function escapeHtml(str) {
+  return String(str == null ? '' : str).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+}
+
+const HUB_REPORTER_SNIPPET =
+`export default defineConfig({
+  // ...
+  reporter: [
+    ...existingReporters,
+    ...(process.env.HUB_RUN_ID ? [['./dashboard/hub-reporter.js']] : []),
+  ],
+});`;
+
+const BP_TAG_SNIPPET = `test('create material @bp:material-create', async () => { ... });`;
+
+function stepFixHtml(step) {
+  switch (step.id) {
+    case 'playwright':
+      if (step.status === 'ok') return '';
+      return `<div class="step-fix"><div class="code-snippet">npm install</div></div>`;
+    case 'suites':
+      if (step.status === 'ok') return '';
+      return `<div class="step-fix"><div class="code-snippet">suites/&lt;name&gt;/e2e/*.spec.ts</div></div>`;
+    case 'hubReporter':
+      return `<div class="step-fix">
+        <div class="code-snippet" id="reporterSnippet">${escapeHtml(HUB_REPORTER_SNIPPET)}</div>
+        <div class="step-actions">
+          <button class="btn-secondary" onclick="copySnippet('reporterSnippet','reporterCopyStatus')">Copy</button>
+          <span class="copy-status" id="reporterCopyStatus"></span>
+        </div>
+        <div class="ack-row">
+          <label class="switch">
+            <input type="checkbox" id="hubReporterAck" onchange="toggleHubReporterAck()">
+            <span class="switch-track"></span>
+          </label>
+          I've added this to playwright.config.ts
+        </div>
+      </div>`;
+    case 'tagging':
+      return `<div class="step-fix">
+        <div class="code-snippet">${escapeHtml(BP_TAG_SNIPPET)}</div>
+        <div class="step-actions"><a class="btn-secondary" href="/readiness.html" style="text-decoration:none">View coverage →</a></div>
+      </div>`;
+    case 'targetEnv':
+      if (step.status === 'ok') return '';
+      return `<div class="step-fix"><div class="step-actions"><a class="btn-secondary" href="/settings.html" style="text-decoration:none">Configure in Settings →</a></div></div>`;
+    case 'ai':
+      if (step.status === 'ok') return '';
+      return `<div class="step-fix"><div class="step-actions"><a class="btn-secondary" href="/settings.html" style="text-decoration:none">Configure in Settings (optional) →</a></div></div>`;
+    default:
+      return '';
+  }
+}
+
+function iconFor(status) {
+  if (status === 'ok') return { cls: 'ok', glyph: '✓' };
+  if (status === 'warn') return { cls: 'warn', glyph: '!' };
+  return { cls: 'todo', glyph: '⬜' };
+}
+
+function renderSteps(data) {
+  const { steps, completedCount, totalCount } = data;
+  const pct = totalCount ? Math.round((completedCount / totalCount) * 100) : 0;
+  $('progressFill').style.width = pct + '%';
+  $('progressLabel').textContent = `${completedCount} / ${totalCount} complete`;
+
+  $('stepsList').innerHTML = `<div style="display:flex;flex-direction:column;gap:12px">` + steps.map(s => {
+    const icon = iconFor(s.status);
+    return `
+      <div class="step-card">
+        <div class="step-icon ${icon.cls}">${icon.glyph}</div>
+        <div class="step-body">
+          <div class="step-title-row">
+            <span class="step-title">${escapeHtml(s.label)}</span>
+            ${s.optional ? '<span class="step-optional-badge">Optional</span>' : ''}
+          </div>
+          <div class="step-detail">${escapeHtml(s.detail)}</div>
+          ${stepFixHtml(s)}
+        </div>
+      </div>`;
+  }).join('') + `</div>`;
+
+  const ackBox = document.getElementById('hubReporterAck');
+  if (ackBox) ackBox.checked = !!data._hubReporterAcked;
+}
+
+let lastData = null;
+async function loadSetupStatus() {
+  try {
+    const data = await fetch('/api/setup/status').then(r => r.json());
+    if (!data.ok) throw new Error(data.error);
+    lastData = data;
+    renderSteps(data);
+  } catch (err) {
+    $('stepsList').innerHTML = `<div class="empty">⚠ ${escapeHtml(err.message)}</div>`;
+  }
+}
+
+async function loadAckState() {
+  try {
+    const data = await fetch('/api/settings').then(r => r.json());
+    if (data.ok && lastData) {
+      lastData._hubReporterAcked = !!data.settings.setupHubReporterAcked;
+      renderSteps(lastData);
+    }
+  } catch (_) {}
+}
+
+function copySnippet(elId, statusElId) {
+  const text = $(elId).textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const el = $(statusElId);
+    el.textContent = 'Copied!';
+    setTimeout(() => { el.textContent = ''; }, 2000);
+  }).catch(() => {
+    $(statusElId).textContent = 'Copy failed — select the text manually.';
+  });
+}
+
+async function toggleHubReporterAck() {
+  const checked = $('hubReporterAck').checked;
+  try {
+    await fetch('/api/settings', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ setupHubReporterAcked: checked }),
+    });
+  } catch (_) {}
+  loadSetupStatus();
+}
+
+function onShellReady() {
+  loadSetupStatus().then(loadAckState);
+}
+initShell('setup');
+</script>
+</body>
+</html>

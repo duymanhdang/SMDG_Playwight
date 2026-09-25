@@ -1,0 +1,410 @@
+{
+  "suite": "S4_QAS_AUTO_MM01_VISIBLE_RULE",
+  "description": "SimpleMDG S4 QAS - Visible Rule (Business Rule) Automated Test Suite v2",
+  "environment": "QAS",
+  "baseUrl": "https://smdg-s4-qas-simplemdg-web.cfapps.br10.hana.ondemand.com",
+
+  "templates": {
+    "AUTO_MM01_VISIBLE_RULE": {
+      "name": "AUTO_MM01_VISIBLE_RULE",
+      "objectType": "Product"
+    }
+  },
+
+  "comments": {
+    "requestorSubmit": "Automation: Visible Rule - Requestor has submitted this request",
+    "approverApprove": "Automation: Visible Rule - Approver has approved this request",
+    "stewardActivate": "Automation: Visible Rule - Steward has activated this request"
+  },
+
+  "rules": {
+    "R1": {
+      "sourceSection": "PLANTDATA",
+      "sourceField": "plant",
+      "targetSection": "GENERALPLANTDATASTORAGE",
+      "targetField": "plant",
+      "sourceValue": "0001",
+      "acceptedAnyValue": false
+    },
+    "R2": {
+      "sourceSection": "PLANTDATA",
+      "sourceField": "replacementPart",
+      "targetSection": "SHIPPINGDATATIMEINDAYS",
+      "targetField": "loadingGroup",
+      "sourceValue": "A",
+      "acceptedAnyValue": false
+    },
+    "R3": {
+      "sourceSection": "CONTROLDATA",
+      "sourceField": "prodPlntFcstModSelProcedure",
+      "targetSection": "CONTROLDATA",
+      "targetField": "prodPlntFcstModSelMethod",
+      "sourceValue": "1",
+      "acceptedAnyValue": false
+    },
+    "R4": {
+      "sourceSection": "BASICTEXT",
+      "sourceField": "longText",
+      "targetSection": "BASICTEXT",
+      "targetField": "language",
+      "sourceValue": "EN",
+      "acceptedAnyValue": false
+    },
+    "R5": {
+      "sourceSection": "BASICGENERAL",
+      "sourceField": "laboratoryOrDesignOffice",
+      "targetSection": "PLANTDATA",
+      "targetField": "materialFreightGroup",
+      "sourceValue": "*",
+      "acceptedAnyValue": true
+    },
+    "R6": {
+      "userAttribute": "userID",
+      "targetSection": "BASICGENERAL",
+      "targetField": "prodEffctyParamValsAreAssigned",
+      "sourceValue": "smdg.prestage@proton.me"
+    },
+    "R7": {
+      "sourceSection": "BASICDIMENSION",
+      "sourceField": "grossWeight",
+      "targetSection": "BASICDIMENSION",
+      "targetField": "netWeight",
+      "sourceValue": "10.000",
+      "acceptedAnyValue": false
+    },
+    "R8": {
+      "sourceSection": "BASICDIMENSION",
+      "sourceField": "materialVolume",
+      "targetSection": "BASICDIMENSION",
+      "targetField": "sizeOrDimensionText",
+      "sourceValue": "*",
+      "acceptedAnyValue": true
+    },
+    "R9": {
+      "sourceSection": "GENERALPLANTDATA1",
+      "sourceField": "isBatchManagementRequired",
+      "targetSection": "GENERALPLANTDATA1",
+      "targetField": "discountInKindEligibility",
+      "sourceValue": "true",
+      "acceptedAnyValue": false
+    },
+    "R10": {
+      "userAttribute": "userGroupID",
+      "targetSection": "SALESSHIPPING",
+      "targetField": "transportationGroup",
+      "sourceValue": "AUTO_GROUP"
+    }
+  },
+
+  "testData": {
+    "vr-e2e-mm-01": {
+      "description": "TC-01: Boundary Tests — 5 rules (R1-R5), boundary cycles + happy path",
+      "priority": "Critical",
+      "sourceCR": "CR0000024013",
+      "adminRules": ["R1", "R2", "R3", "R4", "R5"],
+      "decisionTable": [
+        {
+          "id": "R1",
+          "tab": "Plant Data",
+          "sourceSection": "PLANTDATA",
+          "sourceFieldLabel": "Plant",
+          "sourceValue": "0001",
+          "targetSection": "PLANTDATA",
+          "targetTab": "Plant Data",
+          "targetFieldLabel": "Storage Location",
+          "targetAction": "fill",
+          "targetValue": "0001",
+          "sourceFieldType": "f4"
+        },
+        {
+          "id": "R2",
+          "tab": "Plant Data",
+          "sourceSection": "PLANTDATA",
+          "sourceFieldLabel": "Replacement Part",
+          "sourceValue": "A",
+          "targetSection": "SHIPPINGDATATIMEINDAYS",
+          "targetTab": "Shipping Data",
+          "targetFieldLabel": "Loading Group",
+          "targetAction": "fill",
+          "targetValue": "0001",
+          "sourceFieldType": "f4"
+        },
+        {
+          "id": "R3",
+          "tab": "Basic Data",
+          "sourceSection": "CONTROLDATA",
+          "sourceFieldLabel": "Forecast Model Selection Procedure",
+          "sourceValue": "1",
+          "targetSection": "CONTROLDATA",
+          "targetTab": "Basic Data",
+          "targetFieldLabel": "Selection Method",
+          "targetAction": "combobox",
+          "targetValue": "2",
+          "sourceFieldType": "f4"
+        },
+        {
+          "id": "R4",
+          "tab": "Basic Data",
+          "sourceSection": "BASICTEXT",
+          "sourceFieldLabel": "Long Text",
+          "sourceValue": "Test text",
+          "targetSection": "BASICTEXT",
+          "targetTab": "Basic Data",
+          "targetFieldLabel": "Language",
+          "targetAction": "fill",
+          "targetValue": "EN",
+          "sourceFieldType": "textarea"
+        },
+        {
+          "id": "R5",
+          "tab": "Basic Data",
+          "sourceSection": "BASICGENERAL",
+          "sourceFieldLabel": "Laboratory/Design Office",
+          "sourceValue": "any",
+          "targetSection": "PLANTDATA",
+          "targetTab": "Plant Data",
+          "targetFieldLabel": "Material Freight Group",
+          "targetAction": "fill",
+          "targetValue": "0001",
+          "sourceFieldType": "f4"
+        }
+      ],
+      "header": {
+        "description": "VR-E2E-MM-01: Boundary Tests Visible Rule",
+        "priority": "High",
+        "reason": "New Product",
+        "notes": "Automation: Boundary tests for Visible Rule"
+      },
+      "sourceField": {
+        "tab": "Plant Data"
+      },
+      "expectedStatuses": {
+        "afterSubmit": "SUBMITTED"
+      }
+    },
+
+    "vr-e2e-mm-02": {
+      "description": "TC-02: Persistence — R1+R2 fill source+target, save, reopen, verify target persists",
+      "priority": "High",
+      "sourceCR": "CR0000024013",
+      "adminRules": ["R1", "R2"],
+      "rules": [
+        {
+          "sourceSection": "PLANTDATA",
+          "sourceFieldLabel": "Plant",
+          "sourceValue": "0001",
+          "targetSection": "PLANTDATA",
+          "targetFieldLabel": "Storage Location",
+          "targetValue": "0001"
+        },
+        {
+          "sourceSection": "PLANTDATA",
+          "sourceFieldLabel": "Replacement Part",
+          "sourceValue": "A",
+          "targetSection": "SHIPPINGDATATIMEINDAYS",
+          "targetFieldLabel": "Loading Group",
+          "targetValue": "0001"
+        }
+      ],
+      "header": {
+        "description": "VR-E2E-MM-02: Persistence Visible Rule",
+        "priority": "High",
+        "reason": "New Product",
+        "notes": "Automation: Persistence tests for Visible Rule"
+      },
+      "sourceField": {
+        "tab": "Basic Data"
+      },
+      "expectedStatuses": {
+        "afterSubmit": "SUBMITTED"
+      }
+    },
+
+    "vr-e2e-mm-03": {
+      "description": "TC-03: ComboBox + Textarea — R3 combobox source, R4 textarea source",
+      "priority": "High",
+      "sourceCR": "CR0000024013",
+      "adminRules": ["R3", "R4"],
+      "rules": [
+        {
+          "sourceSection": "CONTROLDATA",
+          "sourceFieldLabel": "Forecast Model Selection Procedure",
+          "sourceValue": "1",
+          "targetSection": "CONTROLDATA",
+          "targetFieldLabel": "Selection Method",
+          "targetAction": "combobox",
+          "targetValue": "2"
+        },
+        {
+          "sourceSection": "BASICTEXT",
+          "sourceFieldLabel": "Long Text",
+          "sourceValue": "Test text",
+          "targetSection": "BASICTEXT",
+          "targetFieldLabel": "Language",
+          "targetAction": "fill",
+          "targetValue": "EN"
+        }
+      ],
+      "header": {
+        "description": "VR-E2E-MM-03: ComboBox + Textarea Visible Rule",
+        "priority": "High",
+        "reason": "New Product",
+        "notes": "Automation: ComboBox and Textarea tests for Visible Rule"
+      },
+      "sourceField": {
+        "tab": "Basic Data"
+      },
+      "expectedStatuses": {
+        "afterSubmit": "SUBMITTED"
+      }
+    },
+
+    "vr-e2e-mm-04": {
+      "description": "TC-04: Dimensions — R7+R8 in BASICDIMENSION, same-section rules",
+      "priority": "High",
+      "sourceCR": "CR0000024013",
+      "adminRules": ["R7", "R8"],
+      "rules": [
+        {
+          "sourceSection": "BASICDIMENSION",
+          "sourceFieldLabel": "Gross Weight",
+          "sourceValue": "10.000",
+          "targetSection": "BASICDIMENSION",
+          "targetFieldLabel": "Net Weight",
+          "targetValue": "5.000"
+        },
+        {
+          "sourceSection": "BASICDIMENSION",
+          "sourceFieldLabel": "Material Volume",
+          "sourceValue": "any",
+          "targetSection": "BASICDIMENSION",
+          "targetFieldLabel": "Size/Dimension Text",
+          "targetValue": "Test dimension"
+        }
+      ],
+      "header": {
+        "description": "VR-E2E-MM-04: Dimensions Visible Rule",
+        "priority": "High",
+        "reason": "New Product",
+        "notes": "Automation: Dimensions section tests for Visible Rule"
+      },
+      "sourceField": {
+        "tab": "Dimensions/EANs"
+      },
+      "expectedStatuses": {
+        "afterSubmit": "SUBMITTED"
+      }
+    },
+
+    "vr-e2e-mm-05": {
+      "description": "TC-05: Wildcard — R5 with * source value, target always visible",
+      "priority": "High",
+      "sourceCR": "CR0000024013",
+      "adminRules": ["R5"],
+      "rules": [
+        {
+          "sourceSection": "BASICGENERAL",
+          "sourceFieldLabel": "Laboratory/Design Office",
+          "sourceValue": "any",
+          "targetSection": "PLANTDATA",
+          "targetFieldLabel": "Material Freight Group",
+          "targetValue": "0001"
+        }
+      ],
+      "header": {
+        "description": "VR-E2E-MM-05: Wildcard Visible Rule",
+        "priority": "High",
+        "reason": "New Product",
+        "notes": "Automation: Wildcard rules always show target"
+      },
+      "sourceField": {
+        "tab": "Basic Data"
+      },
+      "expectedStatuses": {
+        "afterSubmit": "SUBMITTED"
+      }
+    },
+
+    "vr-e2e-mm-06": {
+      "description": "TC-06: System Attribute — R6+R9, target always visible without source action",
+      "priority": "High",
+      "sourceCR": "CR0000024013",
+      "adminRules": ["R6", "R9"],
+      "rules": [
+        {
+          "targetSection": "BASICGENERAL",
+          "targetFieldLabel": "Effectivity Parameter"
+        },
+        {
+          "targetSection": "GENERALPLANTDATA1",
+          "targetFieldLabel": "Discount In Kind Eligibility"
+        }
+      ],
+      "header": {
+        "description": "VR-E2E-MM-06: System Attribute Visible Rule",
+        "priority": "High",
+        "reason": "New Product",
+        "notes": "Automation: System attribute rules - target always visible"
+      },
+      "sourceField": {
+        "tab": "Basic Data"
+      },
+      "expectedStatuses": {
+        "afterSubmit": "SUBMITTED"
+      }
+    },
+
+    "vr-e2e-mm-07": {
+      "description": "TC-07: User Group — R10, target always visible in Sales tab",
+      "priority": "High",
+      "sourceCR": "CR0000024013",
+      "adminRules": ["R10"],
+      "rules": [
+        {
+          "targetSection": "SALESSHIPPING",
+          "targetFieldLabel": "Transportation Group"
+        }
+      ],
+      "header": {
+        "description": "VR-E2E-MM-07: User Group Visible Rule",
+        "priority": "High",
+        "reason": "New Product",
+        "notes": "Automation: User group rules - target always visible in Sales tab"
+      },
+      "sourceField": {
+        "tab": "Sales Data"
+      },
+      "expectedStatuses": {
+        "afterSubmit": "SUBMITTED"
+      }
+    },
+
+    "vr-e2e-mm-08": {
+      "description": "TC-08 Smoke: Complete Happy Path — Admin CRUD → Main Verify → Lifecycle → Cleanup",
+      "priority": "Critical",
+      "sourceCR": "CR0000024013",
+      "adminRules": ["R7"],
+      "header": {
+        "description": "VR-E2E-MM-08: Smoke Happy Path Visible Rule",
+        "priority": "High",
+        "reason": "New Product",
+        "notes": "Automation: Cross-cutting smoke for Visible Rule"
+      },
+      "sourceField": {
+        "tab": "Dimensions/EANs",
+        "heading": "Dimensions/EANs",
+        "label": "Gross Weight",
+        "inputValue": "10.000",
+        "defaultValue": "0.000"
+      },
+      "targetField": {
+        "label": "Net Weight"
+      },
+      "expectedStatuses": {
+        "afterSubmit": "SUBMITTED",
+        "afterApprove": "APPROVED",
+        "activationStatus": "ACTIVATED"
+      }
+    }
+  }
+}

@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Test Explorer — SimpleMDG Automation Hub</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/shared.css">
+<style>
+.explorer-columns {
+  display: grid; grid-template-columns: minmax(240px, 320px) 1fr minmax(260px, 284px); gap: 14px;
+  min-height: 0; flex: 1;
+}
+@media (max-width: 1100px) { .explorer-columns { grid-template-columns: 1fr; } }
+
+.col-panel { display: flex; flex-direction: column; max-height: calc(100vh - 150px); }
+.col-panel .panel-body { flex: 1; overflow-y: auto; padding: 0; }
+
+.suite-item {
+  display: flex; align-items: center; gap: 10px; padding: 10px 14px; cursor: pointer;
+  border-left: 2px solid transparent; transition: background .12s var(--ease); border-bottom: 1px solid var(--border);
+}
+.suite-item:last-child { border-bottom: none; }
+.suite-item:hover { background: var(--surface-2); }
+.suite-item.active { background: var(--blue-bg); border-left-color: var(--blue); }
+.suite-icon { font-size: 14px; flex-shrink: 0; width: 22px; text-align: center; }
+.suite-info { flex: 1; min-width: 0; }
+.suite-name {
+  font-size: 12px; font-weight: 600; color: var(--text);
+  white-space: normal; word-break: break-word; line-height: 1.35;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.suite-item.active .suite-name { color: var(--blue); }
+.suite-meta { display: flex; align-items: center; gap: 6px; margin-top: 2px; }
+.suite-specs { font-size: 10px; color: var(--text-4); }
+
+.cases-body { padding: 14px; }
+.run-all-row {
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px; margin-bottom: 10px;
+  border: 1.5px dashed var(--border-md); border-radius: var(--r); cursor: pointer;
+  background: var(--surface-2); transition: all .14s var(--ease);
+}
+.run-all-row:hover { border-color: var(--blue); background: var(--blue-bg); }
+.run-all-row.selected { border-style: solid; border-color: var(--blue); background: var(--blue-bg); }
+.run-all-icon {
+  width: 28px; height: 28px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); transition: all .14s;
+}
+.run-all-row:hover .run-all-icon, .run-all-row.selected .run-all-icon { background: var(--blue-bg); border-color: var(--blue-border); }
+.run-all-label strong { font-size: 12px; font-weight: 600; color: var(--text); display: block; }
+.run-all-label span { font-size: 10px; color: var(--text-4); }
+.run-all-row.selected .run-all-label span { color: var(--blue); }
+
+.tag-filter-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.tag-chip {
+  padding: 3px 10px; border-radius: 12px; font-size: 10px; font-weight: 600;
+  background: var(--surface-2); border: 1px solid var(--border-md); color: var(--text-3); cursor: pointer; transition: all .12s var(--ease);
+}
+.tag-chip:hover { border-color: var(--blue); color: var(--blue); }
+.tag-chip.active { background: var(--blue-bg); border-color: var(--blue); color: var(--blue); }
+
+.spec-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+.spec-card { display: flex; align-items: flex-start; gap: 7px; padding: 8px 10px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); cursor: pointer; transition: all .12s var(--ease); }
+.spec-card:hover { border-color: var(--border-md); background: var(--surface-2); }
+.spec-card.selected { border-color: var(--blue); background: var(--blue-bg); }
+.spec-num { font-size: 10px; font-family: var(--mono); color: var(--text-4); flex-shrink: 0; min-width: 16px; padding-top: 1px; }
+.spec-card.selected .spec-num { color: var(--blue); }
+.spec-name { font-size: 11px; font-family: var(--mono); color: var(--text-2); line-height: 1.4; word-break: break-word; }
+.spec-card.selected .spec-name { color: var(--text); font-weight: 500; }
+.spec-tags { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 3px; }
+.spec-tag-badge { font-size: 9px; font-family: var(--mono); color: var(--text-4); background: var(--surface-3); border-radius: 6px; padding: 0 5px; }
+
+.config-body { padding: 14px; display: flex; flex-direction: column; gap: 14px; }
+.config-group { display: flex; flex-direction: column; gap: 6px; }
+.config-label { font-size: 11px; font-weight: 600; color: var(--text-2); display: flex; align-items: center; gap: 6px; }
+.config-lock { font-size: 10px; color: var(--text-4); font-weight: 400; background: var(--surface-3); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; }
+.tog-group { display: flex; gap: 4px; }
+.tog {
+  flex: 1; padding: 6px 0; text-align: center; font-size: 12px; font-weight: 500; font-family: var(--sans);
+  background: var(--surface-2); border: 1px solid var(--border-md); border-radius: var(--r); color: var(--text-3); cursor: pointer; transition: all .12s var(--ease);
+}
+.tog:hover:not(:disabled) { background: var(--surface-3); color: var(--text); }
+.tog.on { background: var(--blue-bg); border-color: var(--blue); color: var(--blue); font-weight: 600; }
+.tog:disabled { opacity: .3; cursor: not-allowed; }
+.config-divider { height: 1px; background: var(--border); margin: 2px 0; }
+.cmd-box {
+  background: #0f1117; border: 1px solid #2d3148; border-radius: var(--r); padding: 10px 12px;
+  font-family: var(--mono); font-size: 11px; color: #c9d1d9; line-height: 1.9; white-space: pre; overflow-x: auto;
+}
+.cmd-ps { color: #484f58; } .cmd-kw { color: #79c0ff; } .cmd-cmd { color: #d2a8ff; }
+.cmd-path { color: #7ee787; } .cmd-flag { color: #ff7b72; } .cmd-val { color: #ffa657; } .cmd-hint { color: #484f58; font-style: italic; }
+.empty-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 40px 20px; text-align: center; }
+.empty-icon { font-size: 28px; opacity: .35; margin-bottom: 4px; }
+.run-status-bar { margin-top: 10px; padding: 8px 10px; border-radius: var(--r); font-size: 11px; line-height: 1.5; border: 1px solid var(--border); background: var(--surface-2); }
+.run-status-bar.ok { border-color: var(--green-bdr); background: var(--green-bg); color: var(--green); }
+.run-status-bar.warn { border-color: var(--orange-bdr); background: var(--orange-bg); color: var(--orange); }
+.run-status-bar.error { border-color: var(--red-bdr); background: var(--red-bg); color: var(--red); }
+.run-status-bar.idle { border-color: var(--border); background: var(--surface-2); color: var(--text-4); }
+.rsb-row { display: flex; justify-content: space-between; gap: 8px; }
+.rsb-item { display: flex; flex-direction: column; align-items: center; flex: 1; }
+.rsb-val { font-size: 13px; font-weight: 700; font-family: var(--mono); }
+.rsb-lbl { font-size: 9px; text-transform: uppercase; letter-spacing: .07em; opacity: .75; margin-top: 1px; }
+.rsb-divider { width: 1px; background: currentColor; opacity: .2; }
+.rsb-msg { font-size: 11px; margin-top: 6px; font-weight: 500; text-align: center; }
+.btn-report { width: 100%; padding: 7px; background: var(--surface); color: var(--green); border: 1px solid var(--green-bdr); border-radius: var(--r); font-size: 12px; font-weight: 500; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 6px; }
+.btn-report:hover:not(:disabled) { background: var(--green-bg); }
+.btn-report:disabled { opacity: .35; cursor: not-allowed; }
+.btn-hint { font-size: 10px; color: var(--text-4); text-align: center; margin-top: 5px; }
+</style>
+</head>
+<body>
+<div id="shell-slot"></div>
+
+<div class="main">
+  <div class="topbar">
+    <div>
+      <div class="topbar-title">Test Explorer</div>
+      <div class="topbar-sub" id="metaLine">Loading project info…</div>
+    </div>
+    <button class="btn-secondary" id="btnScan" onclick="loadSuites()" style="margin-left:auto">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+      Rescan Project
+    </button>
+  </div>
+
+  <div class="page-body" style="height:calc(100vh - 68px)">
+    <div class="explorer-columns">
+
+      <div class="panel col-panel">
+        <div class="panel-head"><span class="panel-title">Test Suites</span><span class="panel-sub" id="suiteCount">—</span></div>
+        <div class="panel-body" id="suiteList">
+          <div style="padding:24px;text-align:center"><div class="spinner"></div><div style="font-size:11px;color:var(--text-4)">Scanning…</div></div>
+        </div>
+      </div>
+
+      <div class="panel col-panel">
+        <div class="panel-head"><span class="panel-title">Test Cases</span><span class="panel-sub" id="specCount">—</span></div>
+        <div class="panel-body" id="mainArea">
+          <div class="empty-state">
+            <div class="empty-icon">📋</div>
+            <div style="font-size:13px;font-weight:500;color:var(--text-3)">No suite selected</div>
+            <div style="font-size:11px;color:var(--text-4)">Select a suite from the left panel to browse its test cases.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel col-panel">
+        <div class="panel-head"><span class="panel-title">Run Configuration</span></div>
+        <div class="config-body" style="overflow-y:auto">
+          <div class="config-group">
+            <div class="config-label">Mode <span class="config-lock" id="modeLock" style="display:none">Suite → Headless only</span></div>
+            <div class="tog-group">
+              <button class="tog" id="togHeaded" onclick="setMode('headed')">Headed</button>
+              <button class="tog on" id="togHeadless" onclick="setMode('headless')">Headless</button>
+            </div>
+          </div>
+          <div class="config-group">
+            <div class="config-label">Workers <span class="config-lock" id="workerLock">Suite run only</span></div>
+            <div class="tog-group">
+              <button class="tog" id="w1" onclick="setWorkers(1)" disabled>1</button>
+              <button class="tog on" id="w2" onclick="setWorkers(2)" disabled>2</button>
+              <button class="tog" id="w4" onclick="setWorkers(4)" disabled>4</button>
+            </div>
+          </div>
+          <div class="config-divider"></div>
+          <div class="config-group">
+            <div class="config-label">Command Preview</div>
+            <div class="cmd-box" id="cmdBox"><span class="cmd-hint">← Select a test case to preview</span></div>
+          </div>
+          <div class="config-divider"></div>
+          <div>
+            <button class="btn-primary" id="btnRun" onclick="runTest()" disabled style="width:100%;justify-content:center">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              Launch Run
+            </button>
+            <button class="btn-report" id="btnReport" onclick="showReport()" disabled>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              Show Last Report
+            </button>
+            <div class="btn-hint">Each run opens an independent PowerShell window</div>
+            <div class="run-status-bar idle" id="runStatusBar">
+              <div class="rsb-row">
+                <div class="rsb-item"><span class="rsb-val" id="rsbSpecs">0/4</span><span class="rsb-lbl">Specs</span></div>
+                <div class="rsb-divider"></div>
+                <div class="rsb-item"><span class="rsb-val" id="rsbSuites">0/2</span><span class="rsb-lbl">Suites</span></div>
+                <div class="rsb-divider"></div>
+                <div class="rsb-item"><span class="rsb-val" id="rsbWorkers">0/6</span><span class="rsb-lbl">Workers</span></div>
+              </div>
+              <div class="rsb-msg" id="rsbMsg"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script src="/shared.js"></script>
+<script>
+let suites = [];
+let activeSuiteId = null;
+let selectedSpec = null;
+let activeTagFilter = null;
+let mode = 'headless';
+let workers = 2;
+
+async function loadMeta() {
+  try {
+    const data = await fetch('/api/meta').then(r => r.json());
+    if (!data.ok) return;
+    $('metaLine').textContent = `${data.product} · ${data.environment} · Playwright v${data.playwrightVersion}`;
+  } catch (_) {}
+}
+
+async function loadSuites() {
+  const btn = $('btnScan');
+  btn.disabled = true;
+  $('suiteList').innerHTML = '<div style="padding:24px;text-align:center"><div class="spinner"></div><div style="font-size:11px;color:var(--text-4)">Scanning project…</div></div>';
+  try {
+    const data = await fetch('/api/suites').then(r => r.json());
+    if (!data.ok) throw new Error(data.error);
+    suites = data.suites;
+    $('suiteCount').textContent = suites.length;
+    renderSidebarList();
+  } catch (err) {
+    $('suiteList').innerHTML = `<div style="padding:16px;font-size:12px;color:var(--red)">⚠ ${err.message}</div>`;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function renderSidebarList() {
+  if (!suites.length) {
+    $('suiteList').innerHTML = '<div class="empty">No suites found</div>';
+    return;
+  }
+  $('suiteList').innerHTML = suites.map(s => `
+    <div class="suite-item ${s.id === activeSuiteId ? 'active' : ''}" onclick="selectSuite('${s.id}')">
+      <div class="suite-icon">${s.id === activeSuiteId ? '📂' : '📁'}</div>
+      <div class="suite-info">
+        <div class="suite-name" title="${s.short}">${s.short}</div>
+        <div class="suite-meta"><span class="suite-specs">${s.specs.length} specs</span></div>
+      </div>
+    </div>`).join('');
+}
+
+function selectSuite(id) {
+  activeSuiteId = id; selectedSpec = null; activeTagFilter = null;
+  renderSidebarList(); renderMain(); updateOptions(); updateCmd();
+  $('btnRun').disabled = true;
+}
+
+function renderMain() {
+  const s = suites.find(x => x.id === activeSuiteId);
+  if (!s) return;
+  const visibleSpecs = activeTagFilter ? s.specs.filter(f => (s.specTags[f] || []).includes(activeTagFilter)) : s.specs;
+  $('specCount').textContent = visibleSpecs.length;
+  const runAllSel = selectedSpec === null;
+
+  const tagChips = (s.tags && s.tags.length) ? `<div class="tag-filter-row">
+      <span class="tag-chip ${!activeTagFilter ? 'active' : ''}" onclick="setTagFilter(null)">All (${s.specs.length})</span>
+      ${s.tags.map(t => `<span class="tag-chip ${activeTagFilter === t ? 'active' : ''}" onclick="setTagFilter('${t}')">@${t}</span>`).join('')}
+    </div>` : '';
+
+  const cards = visibleSpecs.map((f) => {
+    const num = String(s.specs.indexOf(f) + 1).padStart(2, '0');
+    const base = f.replace('.spec.ts', '');
+    const tags = (s.specTags[f] || []);
+    const tagBadges = tags.length ? `<div class="spec-tags">${tags.map(t => `<span class="spec-tag-badge">@${t}</span>`).join('')}</div>` : '';
+    return `<div class="spec-card ${selectedSpec === f ? 'selected' : ''}" onclick="selectSpec('${f}')">
+      <span class="spec-num">${num}</span>
+      <div><span class="spec-name">${base}</span>${tagBadges}</div>
+    </div>`;
+  }).join('');
+
+  $('mainArea').innerHTML = `
+    <div class="cases-body">
+      <div class="run-all-row ${runAllSel ? 'selected' : ''}" onclick="selectRunAll()">
+        <div class="run-all-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="${runAllSel ? '#4f46e5' : '#9ca3af'}"><polygon points="5 3 19 12 5 21 5 3"/></svg></div>
+        <div class="run-all-label"><strong>Run Entire Suite</strong><span>${s.specs.length} specs · playwright.config.ts · headless</span></div>
+      </div>
+      ${tagChips}
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:var(--text-4);margin-bottom:6px">Individual Specs${activeTagFilter ? ` — tagged @${activeTagFilter}` : ''}</div>
+      <div class="spec-grid">${cards || '<div style="grid-column:1/-1;padding:16px;text-align:center;color:var(--text-4);font-size:11px">No specs match this tag</div>'}</div>
+    </div>`;
+}
+
+function setTagFilter(tag) { activeTagFilter = tag; renderMain(); }
+function selectSpec(f) { selectedSpec = f; renderMain(); updateOptions(); updateCmd(); $('btnRun').disabled = false; updateRunStatus(); }
+function selectRunAll() { selectedSpec = null; renderMain(); updateOptions(); updateCmd(); $('btnRun').disabled = false; updateRunStatus(); }
+
+function setMode(m) {
+  mode = m;
+  $('togHeaded').classList.toggle('on', m === 'headed');
+  $('togHeadless').classList.toggle('on', m === 'headless');
+  updateCmd();
+}
+function setWorkers(n) {
+  workers = n;
+  ['w1', 'w2', 'w4'].forEach(id => $(id).classList.remove('on'));
+  $('w' + n).classList.add('on');
+  updateCmd();
+}
+function updateOptions() {
+  const isAll = activeSuiteId && selectedSpec === null;
+  const h = $('togHeaded'), hl = $('togHeadless');
+  if (isAll) {
+    mode = 'headless'; h.disabled = true; hl.disabled = false;
+    h.classList.remove('on'); hl.classList.add('on');
+    $('modeLock').style.display = 'inline';
+    $('w1').disabled = $('w2').disabled = $('w4').disabled = false;
+    $('workerLock').style.display = 'none';
+  } else {
+    h.disabled = false; hl.disabled = false;
+    $('modeLock').style.display = 'none';
+    $('w1').disabled = $('w2').disabled = $('w4').disabled = true;
+    $('workerLock').style.display = 'inline';
+  }
+}
+function updateCmd() {
+  const el = $('cmdBox');
+  if (!activeSuiteId) { el.innerHTML = '<span class="cmd-hint">← Select a test case to preview</span>'; return; }
+  const s = suites.find(x => x.id === activeSuiteId);
+  const isAll = selectedSpec === null;
+  const target = isAll ? `${s.e2eDir}/` : `${s.e2eDir}/${selectedSpec}`;
+  const flagLine = isAll ? `  <span class="cmd-flag">--workers</span>=<span class="cmd-val">${workers}</span>` : (mode === 'headed' ? `  <span class="cmd-flag">--headed</span>` : '');
+  el.innerHTML = `<span class="cmd-ps">PS&gt; </span><span class="cmd-kw">npx</span> <span class="cmd-cmd">playwright</span> test \\\n  <span class="cmd-path">${target}</span> \\\n  <span class="cmd-flag">--config</span>=<span class="cmd-val">playwright.config.ts</span>` + (flagLine ? ` \\\n${flagLine}` : '');
+}
+
+async function runTest() {
+  if (!activeSuiteId) return;
+  const s = suites.find(x => x.id === activeSuiteId);
+  const isAll = selectedSpec === null;
+  const body = isAll ? { type: 'suite', suiteName: s.name, workers } : { type: 'spec', suiteName: s.name, specFile: selectedSpec, mode };
+  try {
+    const data = await fetch('/api/run', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(r => r.json());
+    if (!data.ok) {
+      // §v1.3.0 item 2 — a 'block' pre-flight check stops the run outright;
+      // surface which check(s) failed instead of a generic error.
+      if (data.preflight && data.preflight.checks) {
+        const blocking = data.preflight.checks.filter(c => c.status === 'block');
+        throw new Error(blocking.map(c => c.message).join(' ') || data.error);
+      }
+      throw new Error(data.error);
+    }
+    // Non-blocking pre-flight warnings (e.g. target env unreachable, low disk
+    // space) still surface even though the run started.
+    if (data.preflight && data.preflight.checks) {
+      data.preflight.checks.filter(c => c.status === 'warn').forEach(c => showToast('⚠ ' + c.message));
+    }
+    showToast(`Started: ${data.label} — see Execution Center`);
+    updateRunStatus();
+  } catch (err) {
+    showToast('⚠ ' + err.message);
+  }
+}
+
+async function updateRunStatus() {
+  try {
+    const data = await fetch('/api/limits').then(r => r.json());
+    if (!data.ok) return;
+    const { limits, current } = data;
+    const bar = $('runStatusBar');
+    const isAll = activeSuiteId && selectedSpec === null;
+    const isSel = activeSuiteId !== null;
+    $('rsbSpecs').textContent = `${current.specs}/${limits.maxSpecs}`;
+    $('rsbSuites').textContent = `${current.suites}/${limits.maxSuites}`;
+    $('rsbWorkers').textContent = `${current.totalWorkers}/${limits.maxTotalWorkers}`;
+    let blockReason = null;
+    if (isSel) {
+      if (!isAll && current.specs >= limits.maxSpecs) blockReason = `Spec limit reached (${current.specs}/${limits.maxSpecs})`;
+      if (isAll && current.suites >= limits.maxSuites) blockReason = `Suite limit reached (${current.suites}/${limits.maxSuites})`;
+      if (isAll && (current.totalWorkers + workers) > limits.maxTotalWorkers) blockReason = `Worker limit: ${current.totalWorkers} used + ${workers} requested > ${limits.maxTotalWorkers}`;
+    }
+    const msgEl = $('rsbMsg');
+    if (blockReason) { bar.className = 'run-status-bar error'; msgEl.textContent = '⚠ ' + blockReason; if (isSel) $('btnRun').disabled = true; }
+    else if (current.specs === 0 && current.suites === 0) { bar.className = 'run-status-bar idle'; msgEl.textContent = ''; if (isSel) $('btnRun').disabled = false; }
+    else if (current.specs >= limits.maxSpecs - 1 || current.suites >= limits.maxSuites - 1 || current.totalWorkers >= limits.maxTotalWorkers - 2) { bar.className = 'run-status-bar warn'; msgEl.textContent = 'Approaching resource limits'; if (isSel) $('btnRun').disabled = false; }
+    else { bar.className = 'run-status-bar ok'; msgEl.textContent = 'Resources available'; if (isSel) $('btnRun').disabled = false; }
+  } catch (_) {}
+}
+
+async function checkReport() {
+  try {
+    const data = await fetch('/api/report-status').then(r => r.json());
+    $('btnReport').disabled = !data.available;
+  } catch (_) {}
+}
+async function showReport() {
+  try {
+    const data = await fetch('/api/show-report', { method: 'POST' }).then(r => r.json());
+    if (!data.ok) throw new Error(data.error);
+    window.open(data.url, '_blank');
+    // §v1.8.1 — data.degraded flags the static-fallback path (Playwright's
+    // own show-report server could not be started for this run).
+    showToast(data.degraded ? ('⚠ ' + data.warning) : 'Opening Playwright report…');
+  } catch (err) { showToast('⚠ ' + err.message); }
+}
+
+function onShellReady() {
+  loadMeta();
+  loadSuites();
+  checkReport();
+  updateRunStatus();
+  setInterval(updateRunStatus, 4000);
+}
+initShell('explorer');
+</script>
+</body>
+</html>

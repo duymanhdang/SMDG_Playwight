@@ -1,0 +1,43 @@
+# =============================================================================
+# S4_QAS - SimpleMDG Automated Testing Framework
+# =============================================================================
+
+# Environment variables - NEVER commit actual credentials
+.env
+.env.local
+.env.*.local
+
+# Dependencies
+node_modules/
+
+# Playwright
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+playwright/.auth/
+.playwright-mcp/
+
+# Allure Report
+allure-results/
+allure-report/
+
+# IDE
+.vscode/settings.json
+!.vscode/settings.json
+.idea/
+.continue/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Temporary & debug files
+*.tmp
+*.temp
+temp-*
+debug-*

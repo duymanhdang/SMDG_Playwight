@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Workspace — SimpleMDG Automation Hub</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/shared.css">
+<style>
+.ai-run-card { padding: 14px 16px; border-bottom: 1px solid var(--border); }
+.ai-run-card:last-child { border-bottom: none; }
+.ai-run-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.ai-run-title { font-size: 12.5px; font-weight: 600; }
+.ai-run-sub { font-size: 11px; color: var(--text-4); margin-top: 1px; }
+.ai-box { margin-top: 10px; padding: 10px 12px; border-radius: var(--r); background: var(--blue-bg); border: 1px solid var(--blue-border); font-size: 12px; color: var(--text-2); }
+.ai-box-label { font-weight: 700; color: var(--blue); text-transform: uppercase; font-size: 9.5px; letter-spacing: .05em; margin-bottom: 4px; }
+.ai-confidence { font-size: 9.5px; padding: 1px 7px; border-radius: 8px; margin-left: 6px; text-transform: capitalize; background: var(--surface-3); color: var(--text-3); }
+.disabled-notice { display: flex; align-items: center; gap: 12px; padding: 20px; }
+.disabled-icon { width: 40px; height: 40px; border-radius: 10px; background: var(--orange-bg); color: var(--orange); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+</style>
+</head>
+<body>
+<div id="shell-slot"></div>
+
+<div class="main">
+  <div class="topbar">
+    <div>
+      <div class="topbar-title">AI Workspace</div>
+      <div class="topbar-sub">Cluster-diagnose failures across recent runs using Groq</div>
+    </div>
+  </div>
+
+  <div class="page-body" id="workspaceBody">
+    <div class="spinner"></div>
+  </div>
+</div>
+
+<script src="/shared.js"></script>
+<script>
+let aiSettings = null;
+
+function fmtRelative(ms) {
+  if (!ms) return '—';
+  const diff = Date.now() - ms;
+  const min = Math.round(diff / 60000);
+  if (min < 1) return 'just now';
+  if (min < 60) return `${min}m ago`;
+  const hr = Math.round(min / 60);
+  if (hr < 24) return `${hr}h ago`;
+  return `${Math.round(hr / 24)}d ago`;
+}
+function cssId(str) { return String(str).replace(/[^A-Za-z0-9_-]/g, '_'); }
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+}
+function renderAiBox(diagnosis) {
+  return `<div class="ai-box">
+    <div class="ai-box-label">AI diagnosis <span class="ai-confidence">${diagnosis.confidence || 'unknown'} confidence</span></div>
+    <div><strong>Root cause:</strong> ${escapeHtml(diagnosis.rootCause || '—')}</div>
+    <div style="margin-top:3px"><strong>Suggestion:</strong> ${escapeHtml(diagnosis.suggestion || '—')}</div>
+  </div>`;
+}
+
+async function loadWorkspace() {
+  try {
+    aiSettings = await fetch('/api/settings').then(r => r.json());
+    if (!aiSettings.ok || !aiSettings.settings.aiEnabled || !aiSettings.settings.aiKeySet) {
+      $('workspaceBody').innerHTML = `
+        <div class="panel">
+          <div class="disabled-notice">
+            <div class="disabled-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4z"/></svg>
+            </div>
+            <div>
+              <div style="font-weight:700;font-size:13px">AI diagnosis is not enabled yet</div>
+              <div style="font-size:12px;color:var(--text-4);margin-top:2px">Configure a Groq API key on <a href="/settings.html" style="color:var(--blue)">Settings</a> to start analyzing failures here.</div>
+            </div>
+          </div>
+        </div>`;
+      return;
+    }
+    await loadFailingRuns();
+  } catch (err) {
+    $('workspaceBody').innerHTML = `<div class="empty">⚠ ${err.message}</div>`;
+  }
+}
+
+async function loadFailingRuns() {
+  try {
+    const data = await fetch('/api/runs/history?limit=30').then(r => r.json());
+    if (!data.ok) throw new Error(data.error);
+    const failingRuns = data.runs.filter(r => (r.failed || 0) > 0);
+    if (!failingRuns.length) {
+      $('workspaceBody').innerHTML = '<div class="panel"><div class="empty">No recent runs with failures. 🎉</div></div>';
+      return;
+    }
+    $('workspaceBody').innerHTML = `
+      <div class="panel">
+        <div class="panel-head"><span class="panel-title">Runs with failures (${failingRuns.length})</span></div>
+        <div id="runsList"></div>
+      </div>`;
+    $('runsList').innerHTML = failingRuns.map(r => `
+      <div class="ai-run-card" id="ai-run-${r.id}">
+        <div class="ai-run-head">
+          <div>
+            <div class="ai-run-title">${(r.label || r.id).replace(/^\[(SUITE|SPEC)\]\s*/, '')}</div>
+            <div class="ai-run-sub">${r.suiteName || ''} · ${r.failed} failed · ${fmtRelative(r.startTime)}</div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <a class="btn-secondary" href="/results.html?id=${r.id}">View run</a>
+            <button class="btn-primary" onclick="analyzeRun('${r.id}')">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4z"/></svg>
+              Analyze with AI
+            </button>
+          </div>
+        </div>
+        <div id="ai-result-${r.id}"></div>
+      </div>`).join('');
+  } catch (err) {
+    $('workspaceBody').innerHTML = `<div class="empty">⚠ ${err.message}</div>`;
+  }
+}
+
+async function analyzeRun(runId) {
+  const resultSlot = $(`ai-result-${runId}`);
+  resultSlot.innerHTML = '<div class="spinner" style="margin:10px auto"></div>';
+  try {
+    const runData = await fetch(`/api/runs/${runId}`).then(r => r.json());
+    if (!runData.ok) throw new Error(runData.error);
+    const failedTests = (runData.run.tests || []).filter(t => t.status === 'failed');
+    if (!failedTests.length) throw new Error('No failed test detail found for this run');
+
+    // Group by category so each cluster diagnosis covers tests that likely share a root cause.
+    const byCategory = {};
+    for (const t of failedTests) {
+      const cat = t.category || 'other';
+      (byCategory[cat] = byCategory[cat] || []).push(t.id);
+    }
+
+    let html = '';
+    for (const [category, testIds] of Object.entries(byCategory)) {
+      const data = await fetch('/api/ai/diagnose/cluster', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ runId, testIds }),
+      }).then(r => r.json());
+      if (!data.ok) {
+        html += `<div class="ai-box" style="border-color:var(--red-bdr);background:var(--red-bg);color:var(--red)">⚠ [${category}] ${escapeHtml(data.error)}</div>`;
+        continue;
+      }
+      html += `<div style="font-size:10px;color:var(--text-4);margin-top:8px;text-transform:uppercase;letter-spacing:.05em">${category} (${testIds.length} test${testIds.length > 1 ? 's' : ''})</div>${renderAiBox(data.diagnosis)}`;
+    }
+    resultSlot.innerHTML = html;
+  } catch (err) {
+    resultSlot.innerHTML = `<div class="ai-box" style="border-color:var(--red-bdr);background:var(--red-bg);color:var(--red)">⚠ ${escapeHtml(err.message)}</div>`;
+  }
+}
+
+function onShellReady() {
+  loadWorkspace();
+}
+initShell('ai-workspace');
+</script>
+</body>
+</html>

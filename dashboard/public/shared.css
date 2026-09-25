@@ -1,0 +1,821 @@
+/**
+ * shared.css — Design tokens + sidebar shell used by every page.
+ * Loaded by every page in dashboard/public/. Keep this the single source of
+ * truth for colors/spacing/sidebar so we don't have to edit 7 files to
+ * change one shade of blue.
+ */
+/* Display font for the sidebar brand wordmark only — Inter/JetBrains Mono
+   (loaded per-page) stay the app's body/mono faces; this is a deliberate,
+   narrowly-scoped exception for brand impact, same Google Fonts origin
+   already in use, not a new CDN dependency. */
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@700;800&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/*
+ * §7.1/§7.2 (ARCHITECTURE_PLAN_v0.7-v1.0.md) — "trạm điều khiển" (control-room)
+ * design language: a calm, neutral, dark-by-default palette suited to an
+ * 8h/day QA instrument, not a marketing surface. Colors below are authored in
+ * OKLCH (perceptually uniform lightness/chroma, so adjacent status colors
+ * stay evenly spaced) with an sRGB hex fallback on the line above each token
+ * for browsers/renderers that don't parse oklch(). Avoids the doc's explicit
+ * "avoid" list: no heavy blur, no decorative gradients, no neon saturation.
+ */
+:root {
+  --bg:          #f3f4f7;
+  --bg:          oklch(96.5% 0.004 260);
+  --surface:     #ffffff;
+  --surface:     oklch(100% 0 0);
+  --surface-2:   #f8f9fb;
+  --surface-2:   oklch(98% 0.003 260);
+  --surface-3:   #eef0f4;
+  --surface-3:   oklch(95% 0.006 260);
+  --border:      #e5e7eb;
+  --border:      oklch(91% 0.006 260);
+  --border-md:   #d1d5db;
+  --border-md:   oklch(85% 0.008 260);
+  --text:        #111827;
+  --text:        oklch(22% 0.02 260);
+  --text-2:      #374151;
+  --text-2:      oklch(38% 0.02 260);
+  --text-3:      #6b7280;
+  --text-3:      oklch(55% 0.015 260);
+  --text-4:      #9ca3af;
+  --text-4:      oklch(68% 0.012 260);
+
+  --blue:        #4f46e5;
+  --blue:        oklch(48% 0.19 275);
+  --blue-hover:  #4338ca;
+  --blue-hover:  oklch(42% 0.2 275);
+  --blue-bg:     #eef2ff;
+  --blue-bg:     oklch(95% 0.03 275);
+  --blue-border: #c7d2fe;
+  --blue-border: oklch(85% 0.06 275);
+
+  /* Semantic 7-status palette (§7.2) — one distinct hue per status, kept at
+     matched lightness/chroma so no single status visually "shouts" over
+     the others. Reused everywhere a status badge appears. */
+  --green:       #16a34a;
+  --green:       oklch(56% 0.15 145);   /* passed */
+  --green-bg:    #f0fdf4;
+  --green-bg:    oklch(96% 0.03 145);
+  --green-bdr:   #bbf7d0;
+  --green-bdr:   oklch(88% 0.09 145);
+
+  --red:         #dc2626;
+  --red:         oklch(55% 0.21 25);    /* failed */
+  --red-bg:      #fef2f2;
+  --red-bg:      oklch(96% 0.03 25);
+  --red-bdr:     #fecaca;
+  --red-bdr:     oklch(87% 0.08 25);
+
+  --orange:      #d97706;
+  --orange:      oklch(62% 0.16 65);    /* flaky */
+  --orange-bg:   #fffbeb;
+  --orange-bg:   oklch(96% 0.04 65);
+  --orange-bdr:  #fde68a;
+  --orange-bdr:  oklch(88% 0.1 65);
+
+  --gray:        #6b7280;
+  --gray:        oklch(55% 0.015 260);  /* skipped */
+  --gray-bg:     #f9fafb;
+  --gray-bg:     oklch(97% 0.003 260);
+  --gray-bdr:    #e5e7eb;
+  --gray-bdr:    oklch(91% 0.006 260);
+
+  --purple:      #7c3aed;
+  --purple:      oklch(52% 0.2 295);    /* quarantined */
+  --purple-bg:   #f5f3ff;
+  --purple-bg:   oklch(95% 0.03 295);
+  --purple-bdr:  #ddd6fe;
+  --purple-bdr:  oklch(87% 0.08 295);
+
+  --slate:       #475569;
+  --slate:       oklch(45% 0.03 250);   /* cancelled */
+  --slate-bg:    #f1f5f9;
+  --slate-bg:    oklch(95% 0.01 250);
+  --slate-bdr:   #cbd5e1;
+  --slate-bdr:   oklch(85% 0.02 250);
+
+  --amber:       #b45309;
+  --amber:       oklch(48% 0.13 55);    /* stale */
+  --amber-bg:    #fffbeb;
+  --amber-bg:    oklch(94% 0.05 55);
+  --amber-bdr:   #fed7aa;
+  --amber-bdr:   oklch(84% 0.1 55);
+
+  --mono: 'JetBrains Mono', monospace;
+  --sans: 'Inter', sans-serif;
+  --r:    8px;
+  --r-md: 10px;
+  --r-lg: 14px;
+  --ease: cubic-bezier(.4,0,.2,1);
+  --shadow:    0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.04);
+  --shadow-md: 0 4px 14px rgba(0,0,0,.08);
+  --sidebar-w: 232px;
+
+  /* ── v1.8.0 — type scale (§ design-foundation pass) ─────────────────
+     Token-ization of the sizes already used across the app (audit found
+     10/10.5/11/11.5/12/12.5/13/16/19/22/26px hardcoded ad hoc with no
+     shared name). Consolidated to 8 named steps, nearest-value mapped —
+     this is a refactor, not a redesign: rendered sizes stay effectively
+     identical (max drift ~0.5px on a couple of steps). */
+  --text-2xs:  10px;   /* was 9.5–10px  — kbd, section labels, badges, table head */
+  --text-xs:   11px;   /* was 11–11.5px — sidebar env/shortcut rows, topbar-sub */
+  --text-sm:   12px;   /* was 12–12.5px — nav items, buttons, table body */
+  --text-base: 13px;   /* body default, unchanged */
+  --text-md:   14px;   /* launcher search input */
+  --text-lg:   16px;   /* sidebar brand name */
+  --text-xl:   19px;   /* topbar title */
+  --text-2xl:  22px;   /* page hero heading (overview.html) */
+  --text-3xl:  26px;   /* stat-card value */
+
+  /* ── v1.8.0 — spacing scale (§ design-foundation pass) ──────────────
+     4/8px-grid tokens for the padding/gap/margin literals that already
+     sit on (or effectively round to) that grid. Odd optical values used
+     for fine alignment (e.g. 7px/9px/11px paired offsets) are left as
+     literals on purpose — forcing those onto the grid would be a visual
+     redesign, not the non-breaking token-extraction this pass intends. */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  /* Auto Bot mascot (capybara) — its own small warm palette, separate from
+     the app's blue/status tokens, since the SVG carries its fur colors
+     itself rather than being a single currentColor icon. */
+  --capy-body:       #a9825a;
+  --capy-body-shade: #8f6a45;
+  --capy-belly:      #e4cda7;
+  --capy-dark:       #4a3728;
+  /* Auto Bot's own chrome accent (dusty sage-teal, from the approved demo)
+     — kept separate from --blue so the widget reads as Capy's own identity
+     rather than borrowing the rest of the dashboard's brand color. */
+  --capy-accent:        #5b8c7b;
+  --capy-accent-ink:    #f3fbf8;
+  --capy-accent-strong: #416b5d;
+}
+
+body.dark {
+  --capy-body:       #b98f61;
+  --capy-body-shade: #97744c;
+  --capy-belly:      #e9d7b4;
+  --capy-dark:       #241a12;
+  --capy-accent:        #6fae99;
+  --capy-accent-ink:    #0f1c18;
+  --capy-accent-strong: #8fc7b4;
+  --bg:          #0d1117;
+  --bg:          oklch(19% 0.012 260);
+  --surface:     #161b22;
+  --surface:     oklch(23% 0.014 260);
+  --surface-2:   #1c2128;
+  --surface-2:   oklch(26% 0.014 260);
+  --surface-3:   #262c36;
+  --surface-3:   oklch(30% 0.016 260);
+  --border:      #30363d;
+  --border:      oklch(35% 0.014 260);
+  --border-md:   #444c56;
+  --border-md:   oklch(42% 0.016 260);
+  --text:        #e6edf3;
+  --text:        oklch(92% 0.006 260);
+  --text-2:      #adbac7;
+  --text-2:      oklch(78% 0.012 260);
+  --text-3:      #768390;
+  --text-3:      oklch(60% 0.014 260);
+  --text-4:      #545d68;
+  --text-4:      oklch(46% 0.012 260);
+  --blue:        #6366f1;
+  --blue:        oklch(63% 0.19 275);
+  --blue-hover:  #818cf8;
+  --blue-hover:  oklch(72% 0.16 275);
+  --blue-bg:     #1e1b4b;
+  --blue-bg:     oklch(27% 0.07 275);
+  --blue-border: #3730a3;
+  --blue-border: oklch(38% 0.13 275);
+
+  --green:       #3fb950;
+  --green:       oklch(68% 0.17 145);
+  --green-bg:    #0a2210;
+  --green-bg:    oklch(26% 0.05 145);
+  --green-bdr:   #1a4a1a;
+  --green-bdr:   oklch(37% 0.08 145);
+
+  --orange:      #d29922;
+  --orange:      oklch(72% 0.14 65);
+  --orange-bg:   #2a1f00;
+  --orange-bg:   oklch(27% 0.05 65);
+  --orange-bdr:  #5a3d00;
+  --orange-bdr:  oklch(42% 0.08 65);
+
+  --red:         #f85149;
+  --red:         oklch(64% 0.2 25);
+  --red-bg:      #2a0d0d;
+  --red-bg:      oklch(26% 0.06 25);
+  --red-bdr:     #5a1a1a;
+  --red-bdr:     oklch(38% 0.09 25);
+
+  --gray:        #768390;
+  --gray:        oklch(60% 0.014 260);
+  --gray-bg:     #1c2128;
+  --gray-bg:     oklch(26% 0.014 260);
+  --gray-bdr:    #30363d;
+  --gray-bdr:    oklch(35% 0.014 260);
+
+  --purple:      #a78bfa;
+  --purple:      oklch(72% 0.15 295);
+  --purple-bg:   #241b3d;
+  --purple-bg:   oklch(28% 0.07 295);
+  --purple-bdr:  #4c3a80;
+  --purple-bdr:  oklch(40% 0.11 295);
+
+  --slate:       #94a3b8;
+  --slate:       oklch(72% 0.025 250);
+  --slate-bg:    #1e2530;
+  --slate-bg:    oklch(28% 0.014 250);
+  --slate-bdr:   #3a4453;
+  --slate-bdr:   oklch(40% 0.02 250);
+
+  --amber:       #e0a850;
+  --amber:       oklch(74% 0.11 55);
+  --amber-bg:    #2b2008;
+  --amber-bg:    oklch(27% 0.04 55);
+  --amber-bdr:   #5a4318;
+  --amber-bdr:   oklch(40% 0.07 55);
+}
+
+html, body { height: 100%; }
+body {
+  font-family: var(--sans);
+  background: var(--bg);
+  color: var(--text);
+  font-size: var(--text-base);
+  line-height: 1.5;
+  display: flex;
+}
+
+/* ══════════════════════════════════════
+   SIDEBAR
+══════════════════════════════════════ */
+.sidebar {
+  width: var(--sidebar-w);
+  flex-shrink: 0;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  overflow-y: auto;
+}
+/* "Framed brand panel" treatment (Option C, user-selected): the whole brand
+   area is its own visually distinct block — subtle tinted background + full
+   border + radius — rather than plain sidebar padding, so it reads as the
+   app's brand identity, not just another sidebar row. */
+.sidebar-brand {
+  display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2);
+  margin: var(--space-3) var(--space-3) var(--space-2);
+  padding: var(--space-4) var(--space-4) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: linear-gradient(180deg, var(--surface-3), var(--surface-2));
+}
+/* v1.8.0 — real product logo (dashboard/public/assets/logo.svg), replacing
+   the old "◆" glyph mark. The source SVG is a fixed navy/green wordmark
+   (#245392 / #87CC2E) with no dark-mode variant, so it's wrapped in a
+   light chip so it stays legible/on-brand regardless of theme instead of
+   trying to recolor someone else's brand mark. */
+.sidebar-logo-chip {
+  display: flex; align-items: center; justify-content: flex-start;
+  padding: var(--space-2) var(--space-3);
+  background: #ffffff; border: 1px solid var(--border); border-radius: var(--r);
+  box-shadow: var(--shadow);
+}
+.sidebar-logo-img { display: block; height: 20px; width: auto; }
+/* "AUTOMATION HUB" — the app's actual name, since the logo image itself
+   only spells out "SimpleMDG". Space Grotesk (imported at the top of this
+   file) for display impact: bold, uppercase, wide letter-spacing — reads as
+   a wordmark in its own right, not a faint sidebar caption. */
+.sidebar-brand-text .hub-name {
+  font-family: 'Space Grotesk', var(--sans);
+  font-size: var(--text-xl); font-weight: 700;
+  letter-spacing: .05em; text-transform: uppercase;
+  color: var(--text); line-height: 1.2; margin-top: 2px;
+}
+.sidebar-brand-text .hub-tagline {
+  font-size: var(--text-2xs); font-weight: 600; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--green); margin-top: 2px;
+}
+
+/* ══════════════════════════════════════
+   SIDEBAR FOOTER — app credit / version (§3)
+══════════════════════════════════════ */
+.sidebar-credit {
+  padding: var(--space-2) var(--space-2) 2px; font-size: var(--text-2xs); color: var(--text-4);
+  display: flex; flex-direction: column; gap: 1px; line-height: 1.5;
+}
+.sidebar-credit .built-by { font-weight: 600; color: var(--text-3); }
+.sidebar-credit .version  { font-family: var(--mono); }
+
+.sidebar-nav { padding: var(--space-2) var(--space-2); display: flex; flex-direction: column; gap: 2px; flex: 1; }
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: var(--space-2) var(--space-2); border-radius: var(--r);
+  color: var(--text-3); font-size: var(--text-md); font-weight: 500;
+  text-decoration: none; transition: all .12s var(--ease);
+}
+.nav-item svg { flex-shrink: 0; transition: color .12s var(--ease); }
+.nav-item:hover { background: var(--surface-2); color: var(--text); }
+.nav-item.active { background: var(--blue-bg); color: var(--blue); font-weight: 600; }
+
+/* v1.8.0 — colorized nav icons: each item tints toward its own category
+   color on hover/active instead of the flat blue-everywhere highlight, so
+   the icon itself (not just a background pill) carries meaning. Kept at
+   the same restrained OKLCH lightness/chroma discipline as the 7-status
+   palette — accent, not neon. Neutral items (Settings/About) intentionally
+   keep the original blue highlight since there's no category to signal. */
+.nav-item[data-page="results"].active,
+.nav-item[data-page="readiness"].active   { background: var(--green-bg);  color: var(--green); }
+.nav-item[data-page="results"]:hover,
+.nav-item[data-page="readiness"]:hover    { color: var(--green); }
+.nav-item[data-page="triage-board"].active { background: var(--orange-bg); color: var(--orange); }
+.nav-item[data-page="triage-board"]:hover  { color: var(--orange); }
+.nav-item[data-page="insights"].active,
+.nav-item[data-page="report-center"].active,
+.nav-item[data-page="ai-workspace"].active { background: var(--purple-bg); color: var(--purple); }
+.nav-item[data-page="insights"]:hover,
+.nav-item[data-page="report-center"]:hover,
+.nav-item[data-page="ai-workspace"]:hover  { color: var(--purple); }
+
+.sidebar-section-label {
+  font-size: var(--text-2xs); font-weight: 700; text-transform: uppercase; letter-spacing: .08em;
+  color: var(--text-4); padding: 14px var(--space-2) 6px;
+}
+.sidebar-shortcut {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 6px var(--space-2); border-radius: var(--r); color: var(--text-3);
+  font-size: var(--text-xs); cursor: pointer; text-decoration: none; transition: background .12s;
+}
+.sidebar-shortcut:hover { background: var(--surface-2); color: var(--text); }
+.sidebar-kbd {
+  font-family: var(--mono); font-size: var(--text-2xs); color: var(--text-4);
+  background: var(--surface-3); border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px;
+}
+
+.sidebar-footer { padding: var(--space-3) var(--space-2); border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: var(--space-2); }
+.sidebar-env {
+  display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-2);
+  border-radius: var(--r); background: var(--surface-2); border: 1px solid var(--border); font-size: var(--text-xs);
+}
+.sidebar-env .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--gray); flex-shrink: 0; }
+.sidebar-env .dot.up { background: var(--green); }
+.sidebar-env .dot.down { background: var(--red); }
+.sidebar-env-name { font-weight: 600; color: var(--text-2); }
+.sidebar-env-status { color: var(--text-4); font-size: var(--text-2xs); }
+.sidebar-theme-btn {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 7px; border-radius: var(--r); border: 1px solid var(--border-md);
+  background: var(--surface); color: var(--text-3); font-size: var(--text-xs); cursor: pointer;
+}
+.sidebar-theme-btn:hover { color: var(--blue); border-color: var(--blue); }
+
+/* ══════════════════════════════════════
+   MAIN AREA + TOPBAR
+══════════════════════════════════════ */
+.main { flex: 1; min-width: 0; display: flex; flex-direction: column; height: 100vh; overflow-y: auto; }
+.topbar {
+  display: flex; align-items: center; gap: var(--space-4);
+  padding: var(--space-4) 28px; border-bottom: 1px solid var(--border); background: var(--surface);
+  position: sticky; top: 0; z-index: 5;
+}
+.topbar-title { font-size: var(--text-xl); font-weight: 700; letter-spacing: -.3px; }
+.topbar-sub { font-size: var(--text-xs); color: var(--text-3); margin-top: 1px; }
+.topbar-search {
+  margin-left: auto; display: flex; align-items: center; gap: var(--space-2);
+  padding: 7px var(--space-3); border: 1px solid var(--border-md); border-radius: var(--r);
+  background: var(--surface-2); color: var(--text-4); font-size: var(--text-sm); cursor: pointer; min-width: 220px;
+}
+.topbar-search kbd {
+  margin-left: auto; font-family: var(--mono); font-size: var(--text-2xs);
+  background: var(--surface-3); border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px;
+}
+.btn-primary {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px var(--space-4); background: var(--blue); color: #fff; border: none; border-radius: var(--r);
+  font-size: var(--text-sm); font-weight: 600; font-family: var(--sans); cursor: pointer; transition: all .14s var(--ease);
+}
+.btn-primary:hover { background: var(--blue-hover); }
+.btn-primary:disabled { opacity: .5; cursor: not-allowed; }
+.btn-secondary {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 14px; background: var(--surface); border: 1px solid var(--border-md);
+  border-radius: var(--r); color: var(--text-2); font-size: var(--text-sm); font-weight: 500;
+  font-family: var(--sans); cursor: pointer; text-decoration: none; transition: all .14s var(--ease);
+}
+.btn-secondary:hover { background: var(--surface-2); border-color: var(--blue); color: var(--blue); }
+.btn-secondary:disabled { opacity: .5; cursor: not-allowed; }
+.btn-danger { border-color: var(--red-bdr); color: var(--red); }
+.btn-danger:hover { background: var(--red-bg); border-color: var(--red); color: var(--red); }
+.btn-tiny {
+  padding: 3px 9px; font-size: var(--text-2xs); border-radius: 6px; border: 1px solid var(--border-md);
+  background: var(--surface); color: var(--text-2); cursor: pointer;
+}
+.btn-tiny:hover { border-color: var(--blue); color: var(--blue); }
+
+.page-body { padding: var(--space-6) 28px 40px; display: flex; flex-direction: column; gap: var(--space-4); }
+
+/* ══════════════════════════════════════
+   CARDS / PANELS
+══════════════════════════════════════ */
+.panel {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg);
+  box-shadow: var(--shadow); overflow: hidden;
+  transition: border-color .16s var(--ease), box-shadow .16s var(--ease);
+}
+.panel:hover { border-color: var(--border-md); }
+.panel-head {
+  padding: 13px var(--space-4); border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); flex-wrap: wrap;
+}
+.panel-title { font-size: var(--text-sm); font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--text-3); }
+.panel-sub { font-size: var(--text-xs); color: var(--text-4); margin-top: 2px; }
+.panel-body { padding: var(--space-4); }
+
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: var(--space-3); }
+.stat-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg);
+  box-shadow: var(--shadow); padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-2);
+  transition: transform .14s var(--ease), border-color .14s var(--ease);
+}
+.stat-card:hover { transform: translateY(-1px); border-color: var(--border-md); }
+.stat-label { font-size: var(--text-2xs); font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--text-4); }
+.stat-value { font-size: var(--text-3xl); font-weight: 700; font-family: var(--mono); letter-spacing: -.5px; }
+.stat-delta { font-size: var(--text-xs); font-weight: 600; }
+.stat-delta.up { color: var(--green); }
+.stat-delta.down { color: var(--red); }
+.stat-sparkline { height: 28px; }
+
+/* v1.8.0 — stat-card icon badge: a small circular colored icon (mirrors
+   the status color assigned to that stat, e.g. green for pass-rate, red
+   for failures) rendered next to the label so stat cards carry an icon
+   accent instead of being label+number only. Populated per-card via
+   `.stat-icon` + inline `--stat-color` on pages that opt in (overview.html). */
+.stat-icon-row { display: flex; align-items: center; gap: var(--space-2); }
+.stat-icon {
+  width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: color-mix(in oklch, var(--stat-color, var(--blue)) 16%, transparent);
+  color: var(--stat-color, var(--blue));
+}
+.stat-icon svg { width: 12px; height: 12px; }
+
+/* §7.2 — semantic 7-status palette. Every badge gets a small inline icon
+   (unicode glyph — no icon-font dependency) before its label so status is
+   readable even at a glance / for anyone who can't rely on color alone. */
+.badge {
+  display: inline-flex; align-items: center; gap: 4px; padding: 2px 9px; border-radius: 12px;
+  font-size: var(--text-2xs); font-weight: 600; white-space: nowrap;
+  transition: background .12s var(--ease), border-color .12s var(--ease);
+}
+/* Icon glyph already inherits `color` from the `.badge.<status>` rule
+   below (each sets `color: var(--<status>)`), so the icon itself has
+   always carried the semantic status color, not just the pill background
+   — v1.8.0 bumps its weight slightly so that carries more visibly. */
+.badge::before { font-size: 9px; line-height: 1; font-weight: 700; }
+.badge.running      { background: var(--orange-bg); color: var(--orange); border: 1px solid var(--orange-bdr); }
+.badge.running::before      { content: '\25CF'; } /* ● */
+.badge.done,
+.badge.passed       { background: var(--green-bg);  color: var(--green);  border: 1px solid var(--green-bdr);  }
+.badge.done::before,
+.badge.passed::before       { content: '\2713'; } /* ✓ */
+.badge.failed       { background: var(--red-bg);    color: var(--red);    border: 1px solid var(--red-bdr);    }
+.badge.failed::before       { content: '\2715'; } /* ✕ */
+.badge.flaky        { background: var(--orange-bg); color: var(--orange); border: 1px solid var(--orange-bdr); }
+.badge.flaky::before        { content: '\21BB'; } /* ↻ */
+.badge.skipped      { background: var(--gray-bg);   color: var(--gray);   border: 1px solid var(--gray-bdr);   }
+.badge.skipped::before      { content: '\2013'; } /* – */
+.badge.quarantined  { background: var(--purple-bg); color: var(--purple); border: 1px solid var(--purple-bdr); }
+.badge.quarantined::before  { content: '\26A0'; } /* ⚠ */
+.badge.cancelled,
+.badge.interrupted  { background: var(--slate-bg);  color: var(--slate);  border: 1px solid var(--slate-bdr);  }
+.badge.cancelled::before,
+.badge.interrupted::before  { content: '\25A0'; } /* ■ */
+.badge.stale        { background: var(--amber-bg);  color: var(--amber);  border: 1px solid var(--amber-bdr);  }
+.badge.stale::before        { content: '\23F3'; } /* ⏳ */
+.badge.other        { background: var(--gray-bg);   color: var(--gray);   border: 1px solid var(--gray-bdr);   }
+.badge.other::before        { content: '\25CB'; } /* ○ */
+.badge-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+.badge-dot.pulse { animation: pulse 1.4s ease-in-out infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+
+.empty { padding: 28px; text-align: center; color: var(--text-4); font-size: var(--text-sm); }
+.spinner { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--border); border-top-color: var(--blue); animation: spin .7s linear infinite; margin: 20px auto; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── v1.8.0 part 2 — skeleton loading ────────────────────────────────────
+   Shimmering gray-block placeholders shaped like the content about to
+   load, replacing the single generic spinner in the highest-visibility
+   spots (overview stat cards, results run-history rows, report-center
+   chart containers). `.skeleton` is the shimmer base; `.skeleton-line`,
+   `.skeleton-card`, `.skeleton-stat`, `.skeleton-row`, `.skeleton-chart`
+   are shape variants sized to roughly match the real content's footprint
+   so there's no layout jump when real data replaces them. */
+.skeleton {
+  position: relative; overflow: hidden; border-radius: var(--r);
+  background: var(--surface-3);
+}
+.skeleton::after {
+  content: ''; position: absolute; inset: 0; transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, color-mix(in oklch, var(--text) 8%, transparent), transparent);
+  animation: shimmer 1.5s infinite;
+}
+@keyframes shimmer { 100% { transform: translateX(100%); } }
+@media (prefers-reduced-motion: reduce) {
+  .skeleton::after { animation: none; }
+}
+
+.skeleton-line { height: 11px; margin: 6px 0; }
+.skeleton-line.w-60 { width: 60%; }
+.skeleton-line.w-40 { width: 40%; }
+.skeleton-line.w-80 { width: 80%; }
+
+/* Shaped like a .stat-card: icon-row line + big value line + delta line. */
+.skeleton-stat {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg);
+  box-shadow: var(--shadow); padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-2);
+}
+.skeleton-stat .skeleton-line:first-child { width: 50%; height: 9px; }
+.skeleton-stat .skeleton-line:nth-child(2) { width: 70%; height: 24px; }
+.skeleton-stat .skeleton-line:last-child { width: 45%; height: 9px; }
+
+/* Shaped like one run-history <tr> — a handful of column-width blocks. */
+.skeleton-row { display: flex; align-items: center; gap: var(--space-3); padding: 9px var(--space-4); border-bottom: 1px solid var(--border); }
+.skeleton-row .skeleton-line { margin: 0; height: 10px; }
+.skeleton-row .skeleton-line.c1 { width: 22%; }
+.skeleton-row .skeleton-line.c2 { width: 14%; }
+.skeleton-row .skeleton-line.c3 { width: 10%; }
+.skeleton-row .skeleton-line.c4 { width: 12%; }
+.skeleton-row .skeleton-line.c5 { width: 16%; }
+.skeleton-row .skeleton-line.c6 { width: 10%; margin-left: auto; }
+
+/* Shaped like a chart panel body — one big rectangular block. */
+.skeleton-chart { width: 100%; height: 220px; }
+.skeleton-chart.donut { width: 180px; height: 180px; border-radius: 50%; }
+
+/* ── v1.8.0 part 2 — stagger fade-in for list/table rows ────────────────
+   Applied via inline `animation-delay` (see count-up.js's staggerDelayMs)
+   on results.html's run-history rows and overview.html's recent-executions
+   list. Subtle — rows are already in place, this just fades/lifts them in
+   on first paint rather than a slow cascading reveal. */
+@keyframes rowFadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+.row-fade-in { animation: rowFadeIn .28s var(--ease) both; }
+@media (prefers-reduced-motion: reduce) {
+  .row-fade-in { animation: none; }
+}
+
+/* ── v1.8.0 part 2 — empty-state illustrations ──────────────────────────
+   Small inline SVG line-art sitting above the existing empty-state
+   heading/copy (which is left intact — this only adds a visual, per the
+   design review). */
+.empty-illustration { display: flex; flex-direction: column; align-items: center; gap: var(--space-3); padding: var(--space-6) var(--space-4); text-align: center; }
+.empty-illustration svg { width: 96px; height: 96px; flex-shrink: 0; }
+.empty-illustration .empty-heading { font-size: var(--text-md); font-weight: 700; color: var(--text-2); }
+.empty-illustration .empty-copy { font-size: var(--text-sm); color: var(--text-4); max-width: 420px; }
+.empty-illustration .empty-state-cta { font-size: var(--text-xs); color: var(--text-4); margin-top: var(--space-2); white-space: pre-wrap; }
+
+table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
+th {
+  text-align: left; font-size: var(--text-2xs); font-weight: 600; text-transform: uppercase; letter-spacing: .07em;
+  color: var(--text-4); padding: 8px 4px; border-bottom: 1px solid var(--border);
+}
+td { padding: 9px 4px; border-bottom: 1px solid var(--border); color: var(--text-2); vertical-align: middle; }
+tr:last-child td { border-bottom: none; }
+tr.clickable { cursor: pointer; }
+tr.clickable:hover td { background: var(--surface-2); }
+.col-mono { font-family: var(--mono); font-size: var(--text-xs); color: var(--text); }
+
+/* ══════════════════════════════════════
+   QUICK LAUNCHER MODAL (⌘K / ⌘N)
+══════════════════════════════════════ */
+.launcher-backdrop {
+  position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 100;
+  display: none; align-items: flex-start; justify-content: center; padding-top: 12vh;
+}
+.launcher-backdrop.open { display: flex; }
+.launcher-box {
+  width: 560px; max-width: 92vw; max-height: 70vh; background: var(--surface);
+  border-radius: var(--r-lg); box-shadow: 0 20px 50px rgba(0,0,0,.3); border: 1px solid var(--border);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.launcher-search {
+  display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--border);
+}
+.launcher-search input {
+  flex: 1; border: none; outline: none; background: transparent; font-size: var(--text-md); color: var(--text); font-family: var(--sans);
+}
+.launcher-list { overflow-y: auto; padding: 6px; }
+.launcher-item {
+  display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: var(--r); cursor: pointer;
+}
+.launcher-item:hover, .launcher-item.hi { background: var(--blue-bg); }
+.launcher-item-icon {
+  width: 26px; height: 26px; border-radius: 7px; background: var(--surface-2); border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: var(--text-3);
+}
+.launcher-item-title { font-size: var(--text-sm); font-weight: 500; color: var(--text); }
+.launcher-item-sub { font-size: var(--text-xs); color: var(--text-4); }
+.launcher-hint { padding: 8px var(--space-4); border-top: 1px solid var(--border); font-size: var(--text-xs); color: var(--text-4); display: flex; gap: 14px; }
+
+/* ══════════════════════════════════════
+   TOAST
+══════════════════════════════════════ */
+.toast-stack { position: fixed; bottom: 16px; right: 16px; z-index: 200; display: flex; flex-direction: column; gap: 8px; }
+.toast {
+  background: var(--text); color: var(--bg); border-radius: var(--r); padding: 10px var(--space-4);
+  font-size: var(--text-sm); font-weight: 500; box-shadow: var(--shadow-md); display: flex; align-items: center; gap: 8px;
+  animation: toastIn .2s var(--ease);
+}
+body.dark .toast { background: var(--surface-3); color: var(--text); border: 1px solid var(--border); }
+@keyframes toastIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-md); border-radius: 4px; }
+
+/* ══════════════════════════════════════
+   DENSITY MODE (v1.5.0 item 4 — Comfortable / Compact)
+   Toggled via shared.js's shellToggleDensity(), persisted in localStorage
+   the same way the theme preference is. `data-density="compact"` lives on
+   <html> (set before the shell's DOM exists, so there's no flash of the
+   comfortable layout on load). Targets the same surfaces prior passes
+   already used for tabular/list data: results table, triage board, run
+   history cards, insights panels — a real, visible difference in vertical
+   rhythm, not a cosmetic no-op.
+══════════════════════════════════════ */
+/* NOTE: `data-density` is set on document.documentElement (shared.js
+   shellApplyDensity), i.e. the <html> element — which IS `:root`. Prior
+   version selected both `:root[...]` and `html[...]` for every rule below,
+   a redundant duplicate of the exact same element. Consolidated to a
+   single `html[data-density="compact"]` selector per rule. */
+html[data-density="compact"] table { font-size: var(--text-xs); }
+html[data-density="compact"] th { padding: 4px 4px; }
+html[data-density="compact"] td { padding: 4px 4px; line-height: 1.25; }
+html[data-density="compact"] .run-card { padding: 7px var(--space-3); gap: var(--space-3); }
+html[data-density="compact"] .panel { gap: 4px; }
+html[data-density="compact"] .panel-head { padding: 8px 14px; }
+html[data-density="compact"] .page-body { gap: var(--space-3); padding: 14px var(--space-5) 26px; }
+html[data-density="compact"] .summary-card,
+html[data-density="compact"] .stat-card { padding: 7px; }
+html[data-density="compact"] .triage-status { padding: 1px 6px; }
+
+/* ══════════════════════════════════════
+   EVENTLOG BOT — floating chat widget (every page, injected via shell.html
+   + mounted by shared.js's mountEventlogBot()). z-index sits just below the
+   toast stack (200) so a toast can still surface over an open panel.
+══════════════════════════════════════ */
+.eventlog-bot-fab {
+  position: fixed; bottom: 20px; right: 20px; z-index: 190;
+  width: 52px; height: 52px; border-radius: 50%; border: 1px solid var(--border);
+  background: var(--surface); line-height: 1;
+  box-shadow: var(--shadow-md); cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: transform .15s var(--ease);
+}
+.eventlog-bot-fab:hover { transform: scale(1.06); }
+.eventlog-bot-fab svg { width: 46px; height: 46px; overflow: visible; }
+
+/* Speech bubble — plain sibling of the FAB button in shell.html, shown via
+   the adjacent-sibling hover selector below (no JS needed for this part). */
+.eventlog-bot-fab-bubble {
+  position: fixed; bottom: 78px; right: 20px; z-index: 190;
+  font-size: var(--text-xs); font-weight: 600; color: var(--text);
+  background: var(--surface); border: 1px solid var(--border);
+  padding: 7px 12px; border-radius: 12px; box-shadow: var(--shadow-md);
+  opacity: 0; transform: translateY(6px) scale(.92); transform-origin: bottom right;
+  pointer-events: none; transition: opacity .18s var(--ease), transform .18s var(--ease);
+  white-space: nowrap;
+}
+#eventlogBotToggle:hover + .eventlog-bot-fab-bubble {
+  opacity: 1; transform: translateY(0) scale(1);
+}
+
+/* ── Mascot micro-interactions — see the standalone capybara-widget demo
+   for the full write-up of each keyframe; scoped here under .eventlog-bot-fab
+   so per-message avatars (below) stay static and don't animate constantly
+   in a long chat history. Tweak durations/angles here to adjust the feel. */
+.eventlog-bot-fab .capy-character { animation: eventlogCapyBreathe 3.2s ease-in-out infinite; transform-origin: center bottom; }
+@keyframes eventlogCapyBreathe { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-1.5px); } }
+.eventlog-bot-fab .capy-eyelids { animation: eventlogCapyBlink 4.6s ease-in-out infinite; transform-origin: center; }
+@keyframes eventlogCapyBlink { 0%, 94%, 100% { transform: scaleY(0); } 96%, 97.5% { transform: scaleY(1); } }
+.eventlog-bot-fab:hover .capy-head-group { animation: eventlogCapyTilt .5s ease-out forwards; }
+@keyframes eventlogCapyTilt { to { transform: rotate(-8deg); } }
+.eventlog-bot-fab:hover .capy-wave { animation: eventlogCapyWave .7s ease-in-out infinite; }
+@keyframes eventlogCapyWave { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(18deg); } }
+.eventlog-bot-fab .capy-head-group, .eventlog-bot-fab .capy-wave { transform-box: fill-box; transform-origin: bottom center; }
+.eventlog-bot-fab .capy-character.capy-squish { animation: eventlogCapySquish .32s cubic-bezier(.34,1.56,.64,1); }
+@keyframes eventlogCapySquish { 0% { transform: scale(1,1); } 40% { transform: scale(1.08,.84); } 70% { transform: scale(.96,1.05); } 100% { transform: scale(1,1); } }
+@media (prefers-reduced-motion: reduce) {
+  .eventlog-bot-fab .capy-character, .eventlog-bot-fab .capy-eyelids,
+  .eventlog-bot-fab:hover .capy-head-group, .eventlog-bot-fab:hover .capy-wave,
+  .eventlog-bot-fab .capy-character.capy-squish { animation: none !important; transform: none !important; }
+}
+.eventlog-bot-panel {
+  position: fixed; bottom: 80px; right: 20px; z-index: 190;
+  width: 340px; height: 460px;
+  min-width: 300px; min-height: 320px; max-width: calc(100vw - 40px); max-height: calc(100vh - 110px);
+  display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border);
+  border-radius: 20px; box-shadow: var(--shadow-md); overflow: hidden;
+  resize: both; transform-origin: bottom right;
+  transition: opacity .16s var(--ease), transform .16s var(--ease);
+}
+.eventlog-bot-panel.hidden {
+  opacity: 0; visibility: hidden; pointer-events: none; transform: scale(.94) translateY(8px);
+  transition: opacity .16s var(--ease), transform .16s var(--ease), visibility 0s linear .16s;
+}
+/* Header: solid Capy-accent (not the app's blue) with its own mascot icon +
+   name/status, matching the approved standalone demo's chat header. */
+.eventlog-bot-header {
+  display: flex; align-items: center; gap: 8px; padding: 10px var(--space-3);
+  background: var(--capy-accent); color: var(--capy-accent-ink);
+}
+.eventlog-bot-header-icon { width: 30px; height: 30px; flex-shrink: 0; }
+.eventlog-bot-header-icon svg { width: 100%; height: 100%; display: block; }
+.eventlog-bot-header-title { display: flex; flex-direction: column; line-height: 1.25; margin-right: auto; }
+.eventlog-bot-header-name { font-size: var(--text-sm); font-weight: 700; }
+.eventlog-bot-header-status { font-size: 10.5px; opacity: .85; }
+.eventlog-bot-header-actions { display: flex; align-items: center; gap: 2px; }
+.eventlog-bot-icon-btn {
+  background: none; border: none; color: var(--capy-accent-ink); cursor: pointer; opacity: .8; padding: 4px;
+  display: flex; align-items: center; justify-content: center; border-radius: 6px; transition: opacity .12s var(--ease), background .12s var(--ease);
+}
+.eventlog-bot-icon-btn:hover { opacity: 1; background: rgba(0,0,0,.1); }
+.eventlog-bot-close { font-size: 14px; }
+.eventlog-bot-chips { display: flex; gap: 6px; flex-wrap: wrap; padding: 8px var(--space-3) 0; }
+.eventlog-bot-chip {
+  font-size: 10.5px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--border-md);
+  background: var(--surface); color: var(--text-2); cursor: pointer; transition: background .12s var(--ease), border-color .12s var(--ease);
+}
+.eventlog-bot-chip:hover { background: var(--surface-2); border-color: var(--capy-accent); color: var(--capy-accent-strong); }
+.eventlog-bot-body { flex: 1; overflow-y: auto; padding: var(--space-3); display: flex; flex-direction: column; gap: 10px; }
+/* Bubble-only layout (no per-message avatar) — matches the demo: a single
+   mascot icon lives in the header, chat history is plain aligned bubbles. */
+.eventlog-bot-row { display: flex; }
+.eventlog-bot-row.user { justify-content: flex-end; }
+.eventlog-bot-typing { display: flex; align-items: center; gap: 3px; padding: 3px 2px; }
+.eventlog-bot-typing span {
+  width: 5px; height: 5px; border-radius: 50%; background: var(--text-4);
+  animation: eventlogBotBounce 1.1s ease-in-out infinite;
+}
+.eventlog-bot-typing span:nth-child(2) { animation-delay: .15s; }
+.eventlog-bot-typing span:nth-child(3) { animation-delay: .3s; }
+@keyframes eventlogBotBounce { 0%, 60%, 100% { transform: translateY(0); opacity: .5; } 30% { transform: translateY(-3px); opacity: 1; } }
+.eventlog-bot-msg { font-size: 12.5px; line-height: 1.5; color: var(--text-2); max-width: 82%; border-radius: 14px; }
+/* Only plain conversational replies (greeting/intro/farewell/chitchat) opt
+   into preserving \n as line breaks — the CR/test-report bubbles build their
+   own nested HTML with template-literal indentation, which "pre-line" would
+   turn into visible blank lines between every element. */
+.eventlog-bot-msg.plain-text { white-space: pre-line; }
+.eventlog-bot-msg.user { background: var(--capy-accent); color: var(--capy-accent-ink); padding: 7px 11px; border-bottom-right-radius: 4px; }
+.eventlog-bot-msg.bot { background: var(--surface-2); padding: 8px 11px; border-bottom-left-radius: 4px; }
+.eventlog-bot-msg.bot.is-error { background: var(--red-bg); color: var(--red); }
+.eventlog-bot-overall { font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 4px; }
+.eventlog-bot-overall.PASSED { color: var(--green); }
+.eventlog-bot-overall.FAILED { color: var(--red); }
+.eventlog-bot-overall.NO_EVENTS { color: var(--text-4); }
+.eventlog-bot-stage { margin-top: 6px; font-size: 11.5px; }
+.eventlog-bot-stage-title { font-weight: 600; color: var(--text-3); }
+.eventlog-bot-step { padding: 3px 0 3px 8px; border-left: 2px solid var(--border-md); margin-top: 3px; }
+.eventlog-bot-step.FAILED, .eventlog-bot-step.BYPASS { border-left-color: var(--red); }
+.eventlog-bot-step.PASSED { border-left-color: var(--green); }
+.eventlog-bot-step-log { color: var(--red); font-style: italic; font-size: 11px; margin-top: 2px; }
+.eventlog-bot-inputrow { display: flex; gap: 8px; padding: 10px; border-top: 1px solid var(--border); }
+.eventlog-bot-inputrow input {
+  flex: 1; padding: 9px 14px; border: 1px solid var(--border-md); border-radius: 999px;
+  background: var(--bg); color: var(--text); font-size: 12.5px; font-family: var(--sans);
+}
+.eventlog-bot-inputrow input:focus-visible { outline: 2px solid var(--capy-accent); outline-offset: 1px; }
+.eventlog-bot-inputrow button {
+  width: 36px; height: 36px; border-radius: 50%; border: none; flex-shrink: 0;
+  background: var(--capy-accent); color: var(--capy-accent-ink); cursor: pointer;
+  display: flex; align-items: center; justify-content: center; transition: background .12s var(--ease);
+}
+.eventlog-bot-inputrow button:hover { background: var(--capy-accent-strong); }
+.eventlog-bot-disabled { padding: var(--space-3); font-size: 12px; color: var(--text-3); }
+.eventlog-bot-disabled a { color: var(--capy-accent-strong); }
+.eventlog-bot-analysis {
+  margin-top: 10px; padding: 10px 12px; border-radius: var(--r); font-size: 12px; color: var(--text-2);
+  background: color-mix(in oklch, var(--capy-accent) 12%, var(--surface-2));
+  border: 1px solid color-mix(in oklch, var(--capy-accent) 35%, transparent);
+}
+.eventlog-bot-analysis-label { font-weight: 700; color: var(--capy-accent-strong); text-transform: uppercase; font-size: 9.5px; letter-spacing: .05em; margin-bottom: 4px; }
+.eventlog-bot-tech-toggle {
+  display: block; margin: 4px 0 2px; padding: 0; border: none; background: none; cursor: pointer;
+  font-size: 10.5px; color: var(--capy-accent-strong); text-decoration: underline;
+}
+.eventlog-bot-toggle-scope.tech-hidden .eventlog-bot-techinfo { display: none; }
+.eventlog-bot-batch-item { padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
+.eventlog-bot-batch-item:last-child { border-bottom: none; }
+.eventlog-bot-batch-details { margin-top: 4px; }
+.eventlog-bot-batch-details summary { cursor: pointer; font-size: 10.5px; color: var(--capy-accent-strong); }

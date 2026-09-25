@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>About — SimpleMDG Automation Hub</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/shared.css">
+<style>
+.about-wrap { max-width: 720px; display: flex; flex-direction: column; gap: 16px; }
+.about-hero { display: flex; align-items: center; gap: 14px; }
+.about-hero .mark {
+  width: 48px; height: 48px; border-radius: 12px;
+  background: linear-gradient(135deg, var(--blue), var(--blue-hover));
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 22px; font-weight: 700; flex-shrink: 0;
+  box-shadow: 0 4px 14px rgba(79,70,229,.3);
+}
+.about-hero h1 { font-size: 20px; font-weight: 800; letter-spacing: -.3px; }
+.about-hero .ver { font-size: 11.5px; color: var(--text-4); font-family: var(--mono); margin-top: 2px; }
+.about-desc { font-size: 12.5px; color: var(--text-2); line-height: 1.7; }
+.shortcut-grid { display: grid; grid-template-columns: 1fr auto; gap: 8px 14px; font-size: 12px; }
+.shortcut-grid .k { color: var(--text-2); }
+.upgrade-note { font-size: 12px; color: var(--text-3); line-height: 1.7; white-space: pre-wrap; max-height: 280px; overflow-y: auto; }
+</style>
+</head>
+<body>
+<div id="shell-slot"></div>
+
+<div class="main">
+  <div class="topbar">
+    <div>
+      <div class="topbar-title">About</div>
+      <div class="topbar-sub">What this tool is, its version, and how to drive it</div>
+    </div>
+  </div>
+
+  <div class="page-body">
+  <div class="about-wrap">
+
+    <div class="panel">
+      <div class="panel-body">
+        <div class="about-hero">
+          <div class="mark">◆</div>
+          <div>
+            <h1>SimpleMDG Automation Hub</h1>
+            <div class="ver" id="aboutVersion">Loading version…</div>
+          </div>
+        </div>
+        <p class="about-desc" style="margin-top:14px">
+          An internal QA orchestration dashboard for the SimpleMDG Playwright test suites.
+          It launches Playwright runs (specs or whole suites), tracks live and historical
+          results, classifies failures, tracks flaky-test quarantine, groups runs into
+          regression cycles, and exposes coverage/insights views — all backed by local
+          SQLite storage, no external services required beyond an optional AI-diagnosis
+          integration and an optional webhook notifier.
+        </p>
+        <p class="about-desc" style="margin-top:10px">
+          New here? Walk through the <a href="/setup.html" style="color:var(--blue)">Setup Wizard</a>
+          to check Playwright/suite discovery, opt in to the Hub Reporter, and start tagging tests for
+          business-process coverage.
+        </p>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><span class="panel-title">Keyboard Shortcuts</span></div>
+      <div class="panel-body">
+        <div class="shortcut-grid">
+          <div class="k">Open quick launcher</div><span class="sidebar-kbd">⌘K / ⌘N</span>
+          <div class="k">Execution Center</div><span class="sidebar-kbd">⌘1</span>
+          <div class="k">Test Explorer</div><span class="sidebar-kbd">⌘2</span>
+          <div class="k">View Last Report</div><span class="sidebar-kbd">⌘3</span>
+          <div class="k">Analyze Failures (Insights)</div><span class="sidebar-kbd">⌘4</span>
+          <div class="k">Quick launcher: jump to a nav page</div><span class="sidebar-kbd">&gt; then type</span>
+          <div class="k">Quick launcher: open a recent run</div><span class="sidebar-kbd"># then type</span>
+          <div class="k">Quick launcher: quarantine a test</div><span class="sidebar-kbd">! then type</span>
+          <div class="k">Toggle Comfortable / Compact density</div><span class="sidebar-kbd">Density button (sidebar)</span>
+          <div class="k">Results — move focus between failures</div><span class="sidebar-kbd">j / k</span>
+          <div class="k">Results — mark focused test as Bug</div><span class="sidebar-kbd">b</span>
+          <div class="k">Results — mark focused test as Flaky/ignore</div><span class="sidebar-kbd">f</span>
+          <div class="k">Results — open Quarantine dialog for focused test</div><span class="sidebar-kbd">q</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><span class="panel-title">Release Notes</span></div>
+      <div class="panel-body">
+        <div class="upgrade-note" id="upgradeNotes">Loading…</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-body" style="text-align:center;color:var(--text-4);font-size:11.5px">
+        Built by Alain Truong
+      </div>
+    </div>
+
+  </div>
+  </div>
+</div>
+
+<script src="/shared.js"></script>
+<script>
+async function loadAboutMeta() {
+  try {
+    const data = await fetch('/api/meta').then(r => r.json());
+    if (data && data.ok) {
+      $('aboutVersion').textContent =
+        `v${data.dashboardVersion} · ${data.product} · ${data.environment} · Playwright ${data.playwrightVersion}`;
+    }
+  } catch (_) {
+    $('aboutVersion').textContent = 'Version unavailable';
+  }
+}
+async function loadUpgradeNotesSummary() {
+  // UPGRADE_NOTES.md itself lives at the project root, outside the static
+  // /public root, so it isn't directly fetchable here — a short curated
+  // summary is kept inline instead of trying to serve the raw file.
+  $('upgradeNotes').textContent =
+`v0.7 — Security & correctness hardening: removed shell:true / cmd.exe spawning, added path-traversal and SSRF guards, bound the server to loopback by default.
+v0.8 — Added SQLite-backed storage (dashboard/db.js, storage.js) alongside the original JSON files.
+v0.9 — Added the Hub Reporter, SSE-based live progress, and an in-browser console panel on Execution Center.
+v1.0 — Added quarantine governance, the coverage matrix, git context on each run, a Teams notifier, and a print-friendly report view.
+v1.1 — Report Center (stats, SVG charts, AI summary via Groq), restored a visible terminal window for live log tailing (safely, without shell:true), refreshed the visual design to a dark-by-default control-room palette with a 7-status color system, and replaced the static "Shortcuts" list with this About page.
+v1.2 — Bugfix: Groq "Test connection" no longer fails with HTTP 400 (response_format:json_object requires the word "json" in the prompt).
+v1.3 — Data integrity & triage efficiency: run state now survives a hub restart (PID liveness check instead of blindly marking runs "interrupted"), pre-flight checks before a run starts (target reachable, Playwright CLI present, disk space), failure-signature clustering (groups similar failures across tests), and a cross-run Triage Board page.
+v1.4 — Reporting & governance: a Release Readiness (go/no-go) view with configurable pass-rate/coverage/quarantine thresholds, a Requirement-Risk ranking of business processes, and tag-taxonomy validation (flags specs missing @bp:/@TC- tags or using a typo'd form).
+v1.5 — UI/UX polish: a live Run Timeline Strip, deep-linkable URLs for filters/tabs/runs, an expanded command palette (> jump to page, # open a run, ! quarantine a test), a Comfortable/Compact density toggle, keyboard-first triage on Results (j/k/b/f/q), and interactive Report Center charts (hover tooltips, click-to-filter).
+v1.6 — AST tag resolution & coverage consolidation: tag-scanner.js was rewritten around the TypeScript compiler API so @bp:/@TC-/@tag annotations resolve per TEST (with describe-nesting inheritance) instead of per file, fixing the old false-positive leakage from JSDoc/comments/import specifiers for good; the standalone Coverage page was retired and its matrix + tag-taxonomy-gaps panel merged into Readiness (now "Readiness & Coverage"), which also gained three distinct empty-state messages instead of one generic "no @bp: tags" notice.
+v1.7.0 — Onboarding & Adoption Visibility: a new Setup Wizard (setup.html) walks through the 6 integrations this hub depends on for full value (Playwright CLI, suite discovery, Hub Reporter opt-in, business-process tagging, target environment, optional AI), each with a live ✅/⬜ status and a copy-pasteable fix; a new Tag Adoption % stat card on Overview (with a dismissible "finish setup" banner) makes tagging progress a visible, trackable metric instead of a buried Readiness-page detail.
+v1.7.1 — Bugfix: failure screenshots/videos/traces on a run's Results page no longer go dead after a newer run happens. They used to link straight into the host project's live test-results/ folder, which Playwright wipes at the start of every new run; the hub now copies each attachment into its own storage (dashboard/reports/<runId>/artifacts/) right after the run finishes, before that can happen.
+v1.8.0 — Visual Polish & Production Feel: a type scale and spacing scale replace 10+ ad hoc font-size/padding values, two copy-pasted nav-icon bugs are fixed, sidebar icons and stat-card icons now carry semantic color accents, and the real SimpleMDG logo replaces the old glyph mark in the sidebar; Report Center's and Insights' hand-rolled SVG charts are rebuilt on Chart.js (gradient-fill trend line, animated donut with click-to-filter preserved, threshold-colored suite bars), skeleton loading replaces the generic spinner on Overview/Results/Report Center, hand-drawn empty-state illustrations join the existing helpful copy, and stat numbers count up with a subtle stagger fade-in on list rows.
+v1.8.1 — Bugfix: Playwright's own native HTML report (View Report) was showing broken screenshot thumbnails in its Screenshots panel even on a brand-new run, because it was served via a plain static file mount instead of Playwright's own show-report server. The hub now spawns that real server on-demand (same safe shell:false spawn pattern used everywhere else here) and points View Report at it, with the old static route kept as an automatic fallback if the Playwright CLI can't be found.
+v1.9.0 — Dashboard redesign, part 1 (Report Center, Execution Center, Overview): KPI cards across all three pages now show an icon + a "vs prior period" delta (new computeDeltas()/computeRunStats() in report-aggregator.js); Report Center gained a Recent Executions side panel and a 4-column AI summary layout; Execution Center gained Active/Recent tabs, a Workers & Capacity donut, a 7-day Run Status Trend chart, a Top Failing Suites ranking, and a Regression Cycles table (replacing the card list); Overview gained an AI Insights row (Pass Rate Drop, Flaky Tests, Long Running Suites, Best Performing Suite) computed from existing endpoints — no new AI calls. System Status, a Recent Activity feed, and Upcoming Schedules were scoped out of this pass (they need new tracked data, not just layout).
+v1.10.0 — Dashboard redesign, part 2 (Results): the run list gained the same KPI-cards-with-delta strip (via GET /api/execution/stats), a Tags filter and a Suite Tags column (reusing the existing @tag scan, not a new per-run tags feature), and a per-row "…" action menu (Open Report / Retry failed / Delete) instead of click-to-navigate being the only option; the run detail page's test table and screenshot gallery were reorganized into Tests / Artifacts / AI Analysis tabs — same data and per-test AI Diagnose flow as before, just grouped instead of stacked on one long page. Worker/Environment/Browser columns and a whole-run "Analyze with AI" action were deliberately left out — the hub doesn't track that data today and a from-scratch estimate wasn't in scope for this pass.
+v1.11.0 — Dashboard redesign, part 3 (Insights): a KPI strip (Pass Rate/Failures/Total Runs with icon+delta+sparkline; Flaky/Slow Tests as plain counts — a daily sparkline for either would misrepresent data that isn't naturally day-bucketed) and a "What needs attention" row (4 cards, same computed-from-existing-endpoints approach as Overview's AI Insights, no new AI calls) were added above the existing charts; the Pass Rate Trend chart gained a side panel (current value, delta, best/worst day); Failure Category Breakdown moved from a bar list to a donut, and Top Failure Clusters from a table to a card list; Suite Health gained a per-suite pass-rate sparkline, a trend arrow, Failures/Flaky columns, a Healthy/Watch/At-risk badge, and an "N suites never run" note (new computeSuiteHealthTrend() in report-aggregator.js + failures/flaky/trend fields on GET /api/insights/suite-health). Top Flaky/Slow Tests tables and their existing Quarantine action were left unchanged — a per-test trend sparkline there would have needed a much heavier aggregator for comparatively little value this round.`;
+}
+function onShellReady() {
+  loadAboutMeta();
+  loadUpgradeNotesSummary();
+}
+initShell('about');
+</script>
+</body>
+</html>

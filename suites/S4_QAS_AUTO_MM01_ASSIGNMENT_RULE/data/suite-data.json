@@ -1,0 +1,459 @@
+{
+  "suite": "S4_QAS_AUTO_MM01_ASSIGNMENT_RULE",
+  "description": "SimpleMDG S4 QAS - Assignment Rule (Business Rule) Automated Test Suite",
+  "environment": "QAS",
+  "baseUrl": "https://smdg-s4-qas-simplemdg-web.cfapps.br10.hana.ondemand.com",
+
+  "templates": {
+    "AUTO_MM01_ASSIGNMENT_RULE": {
+      "name": "AUTO_MM01_ASSIGNMENT_RULE",
+      "objectType": "Product"
+    }
+  },
+
+  "comments": {
+    "requestorSubmit": "Automation: Assignment Rule - Requestor has submitted this request",
+    "approverApprove": "Automation: Assignment Rule - Approver has approved this request",
+    "stewardActivate": "Automation: Assignment Rule - Steward has activated this request"
+  },
+
+  "testData": {
+    "ar-e2e-mm-01": {
+      "description": "Smoke: Admin + Main E2E Happy Path for Assignment Rule",
+      "priority": "P0",
+      "templateName": "AUTO_MM01_ASSIGNMENT_RULE",
+      "objectType": "Product",
+      "sourceCR": "CR0000023786",
+      "adminRules": [
+        {
+          "sourceSection": "UNITSOFMEASURE",
+          "sourceField": "unitSpecificProductLength",
+          "targetSection": "UNITSOFMEASURE",
+          "targetField": "unitSpecificProductHeight"
+        },
+        {
+          "sourceSection": "UNITSOFMEASURE",
+          "sourceField": "unitSpecificProductLength",
+          "targetSection": "UNITSOFMEASURE",
+          "targetField": "unitSpecificProductWidth"
+        }
+      ],
+      "header": {
+        "description": "AR-E2E-MM-01: Smoke E2E Assignment Rule with Copy CR",
+        "priority": "High",
+        "reason": "New Product",
+        "notes": "Automation: Verify assignment rule works end-to-end"
+      },
+      "expectedStatuses": {
+        "afterSubmit": "SUBMITTED",
+        "afterApprove": "APPROVED",
+        "activationStatus": "ACTIVATED"
+      },
+      "mainInputValue": "15.000",
+      "expectedAssignment": "15.000",
+      "unitOfDimension": "CM",
+      "stewardMainInputValue": "15,000",
+      "notes": "E2E Smoke: Admin configures 2 rules (Length→Height, Length→Width) → Copy CR → Fill header → Verify → Submit → Approve → Activate"
+    },
+
+    "ar-e2e-mm-02": {
+      "description": "Admin: CRUD Operations & Validations for Assignment Rule",
+      "priority": "P1",
+      "templateName": "AUTO_MM01_ASSIGNMENT_RULE",
+      "objectType": "Product",
+      "scenarios": [
+        {
+          "id": "CREATE_VALID",
+          "sourceSection": "SALESDATA",
+          "sourceField": "productSalesOrg",
+          "targetSection": "SALESDATA",
+          "targetField": "productDistributionChnl",
+          "sourceProperty": "salesOrganization",
+          "expectedResult": "SUCCESS"
+        },
+        {
+          "id": "CREATE_MISSING_SOURCE_SECTION",
+          "sourceSection": "",
+          "sourceField": "DISABLED",
+          "targetSection": "SALESDATA",
+          "targetField": "productDistributionChnl",
+          "sourceProperty": "",
+          "expectedResult": "ERROR",
+          "expectedMessage": "Please enter all required fields"
+        },
+        {
+          "id": "CREATE_MISSING_TARGET_SECTION",
+          "sourceSection": "SALESDATA",
+          "sourceField": "productSalesOrg",
+          "targetSection": "",
+          "targetField": "DISABLED",
+          "sourceProperty": "",
+          "expectedResult": "ERROR",
+          "expectedMessage": "Please enter all required fields"
+        },
+        {
+          "id": "CREATE_DUPLICATE",
+          "sourceSection": "SALESDATA",
+          "sourceField": "productSalesOrg",
+          "targetSection": "SALESDATA",
+          "targetField": "productDistributionChnl",
+          "sourceProperty": "salesOrganization",
+          "expectedResult": "ERROR",
+          "expectedMessage": "This combination has already existed"
+        },
+        {
+          "id": "CREATE_NO_FIELDS",
+          "sourceSection": "PLANTBASICDATA",
+          "sourceField": "",
+          "targetSection": "",
+          "targetField": "",
+          "sourceProperty": "",
+          "expectedResult": "ERROR",
+          "expectedMessage": "Please enter all required fields"
+        },
+        {
+          "id": "DELETE_WITH_CONFIRM",
+          "sourceSection": "SALESDATA",
+          "sourceField": "productSalesOrg",
+          "targetSection": "SALESDATA",
+          "targetField": "productDistributionChnl",
+          "sourceProperty": "distributionChannel",
+          "expectedResult": "SUCCESS",
+          "expectedMessage": "Business Rule Deleted Successfully"
+        }
+      ],
+      "notes": "Data-Driven: 6 scenarios covering CRUD + validations"
+    },
+
+    "ar-e2e-mm-03": {
+      "description": "Main: Assignment Engine - Section Type Combinations (Pairwise)",
+      "priority": "P0",
+      "templateName": "AUTO_MM01_ASSIGNMENT_RULE",
+      "objectType": "Product",
+      "pairs": [
+        {
+          "id": "PAIR_S2S",
+          "sourceSection": "BASICDIMENSION",
+          "sourceField": "netWeight",
+          "targetSection": "BASICDIMENSION",
+          "targetField": "materialVolume",
+          "sourceProperty": "current",
+          "testValue": "5.000",
+          "expectedTarget": "5.000",
+          "sourceType": "Single",
+          "targetType": "Single"
+        },
+        {
+          "id": "PAIR_S2R",
+          "sourceSection": "BASICGENERAL",
+          "sourceField": "baseUnit",
+          "targetSection": "UNITSOFMEASURE",
+          "targetField": "alternativeUnit",
+          "sourceProperty": "unitOfMeasure",
+          "testValue": "BAG",
+          "expectedTarget": "BAG",
+          "sourceType": "Single",
+          "targetType": "Repeatable"
+        },
+        {
+          "id": "PAIR_R2S",
+          "sourceSection": "PLANTDATA",
+          "sourceField": "plant",
+          "targetSection": "PLANTPARAMETERS",
+          "targetField": "serialNumberProfile",
+          "sourceProperty": "plantID",
+          "testValue": "0001",
+          "expectedTarget": "0001",
+          "sourceType": "Repeatable",
+          "targetType": "Single"
+        },
+        {
+          "id": "PAIR_R2R",
+          "sourceSection": "PLANTDATA",
+          "sourceField": "plant",
+          "targetSection": "GENERALPLANTDATASTORAGE",
+          "targetField": "plant",
+          "sourceProperty": "plantID",
+          "testValue": "2001",
+          "expectedTarget": "2001",
+          "sourceType": "Repeatable",
+          "targetType": "Repeatable"
+        }
+      ],
+      "additionalScenarios": [
+        {
+          "id": "DEFAULT_LOAD",
+          "sourceSection": "UNITSOFMEASURE",
+          "sourceField": "unitSpecificProductWidth",
+          "targetSection": "UNITSOFMEASURE",
+          "targetField": "unitSpecificProductHeight",
+          "sourceProperty": "current",
+          "testValue": "125.000",
+          "sourceHasDefault": true,
+          "expectedTarget": "125.000"
+        },
+        {
+          "id": "DEFAULT_CHANGE",
+          "sourceSection": "ACCOUNTINGANDCOSTING",
+          "sourceField": "inventoryValuationProcedure",
+          "targetSection": "VALUATION",
+          "targetField": "productPriceControl",
+          "sourceProperty": "priceControl",
+          "sourceHasDefault": true,
+          "changeValue": "V",
+          "expectedTarget": "V"
+        }
+      ],
+      "notes": "Pairwise: 4 section type combinations + default value scenarios"
+    },
+
+    "ar-e2e-mm-04": {
+      "description": "Main: Rule State ON/OFF Verification (Boundary Testing)",
+      "priority": "P1",
+      "templateName": "AUTO_MM01_ASSIGNMENT_RULE",
+      "objectType": "Product",
+      "rule": {
+        "sourceSection": "BASICDIMENSION",
+        "sourceField": "netWeight",
+        "targetSection": "BASICDIMENSION",
+        "targetField": "materialVolume",
+        "sourceProperty": "current"
+      },
+      "states": [
+        {
+          "id": "STATE_ON",
+          "initialState": "ON",
+          "inputValue": "10",
+          "expectAssignment": true,
+          "expectedTarget": "10"
+        },
+        {
+          "id": "STATE_OFF",
+          "initialState": "OFF",
+          "inputValue": "20",
+          "expectAssignment": false,
+          "expectedTarget": ""
+        },
+        {
+          "id": "STATE_TOGGLE",
+          "initialState": "ON",
+          "toggleToOff": true,
+          "toggleBackToOn": true,
+          "inputValue": "30",
+          "expectAssignment": true,
+          "expectedTarget": "30"
+        }
+      ],
+      "notes": "Boundary: Toggle ON → Main verifies assignment → Toggle OFF → Main verifies no assignment"
+    },
+
+    "ar-e2e-mm-08": {
+      "description": "Main: Full Workflow (Requestor → Approver → Steward) with Assignment UoM",
+      "priority": "P0",
+      "templateName": "AUTO_MM01_ASSIGNMENT_RULE",
+      "objectType": "Product",
+      "sourceCR": "CR0000023786",
+      "confirmLabel": "Material Number",
+      "adminRules": [
+        {
+          "sourceSection": "UNITSOFMEASURE",
+          "sourceField": "unitSpecificProductLength",
+          "targetSection": "UNITSOFMEASURE",
+          "targetField": "unitSpecificProductWidth"
+        },
+        {
+          "sourceSection": "UNITSOFMEASURE",
+          "sourceField": "unitSpecificProductLength",
+          "targetSection": "UNITSOFMEASURE",
+          "targetField": "unitSpecificProductHeight"
+        }
+      ],
+      "mainInputValue": "15.000",
+      "expectedAssignment": "15.000",
+      "unitOfDimension": "CM",
+      "stewardMainInputValue": "15,000",
+      "header": {
+        "description": "AR-E2E-MM-08: Full Workflow - Assignment Rule Verification UoM",
+        "priority": "High",
+        "reason": "New Product",
+        "notes": "Automation: Verify UNITSOFMEASURE assignment rule through full workflow"
+      },
+      "paths": [
+        {
+          "id": "PATH_HAPPY",
+          "flow": "Copy → Draft → Submit → Approve → Activate",
+          "expectedStatuses": {
+            "afterSubmit": "SUBMITTED",
+            "afterApprove": "APPROVED",
+            "activationStatus": "ACTIVATED"
+          }
+        },
+        {
+          "id": "PATH_REJECT",
+          "flow": "Copy → Draft → Submit → Reject → Resubmit → Approve → Activate",
+          "expectedStatuses": {
+            "afterSubmit": "SUBMITTED",
+            "afterReject": "REJECTED",
+            "afterResubmit": "SUBMITTED",
+            "afterApprove": "APPROVED",
+            "activationStatus": "ACTIVATED"
+          }
+        },
+        {
+          "id": "PATH_CANCEL",
+          "flow": "Copy → Draft → Submit → Cancel",
+          "expectedStatuses": {
+            "afterSubmit": "SUBMITTED",
+            "afterCancel": "CANCELLED"
+          }
+        }
+      ],
+      "notes": "E2E Workflow: 3 paths with UoM assignment value verification at each phase transition (value: 15.000, unit: CM)"
+    },
+
+    "ar-e2e-mm-05": {
+      "description": "Main: Advanced Scenarios & Edge Cases for Assignment Rule",
+      "priority": "P2",
+      "templateName": "AUTO_MM01_ASSIGNMENT_RULE",
+      "objectType": "Product",
+      "sourceCR": "CR0000023786",
+      "scenarios": [
+        {
+          "id": "ADV_01",
+          "name": "Basic Assignment (BASICDIMENSION.netWeight → materialVolume)",
+          "description": "Single-to-Single: netWeight → materialVolume assignment verification",
+          "sourceSection": "BASICDIMENSION",
+          "sourceField": "netWeight",
+          "targetSection": "BASICDIMENSION",
+          "targetField": "materialVolume",
+          "sourceProperty": "current",
+          "inputValue": "5.000",
+          "expectedTarget": "5.000",
+          "confirmLabel": "Net Weight"
+        },
+        {
+          "id": "ADV_05",
+          "name": "Repeatable Section - Multi-Row Assignment",
+          "description": "Assignment in repeatable section with multiple existing rows",
+          "sourceSection": "PLANTDATA",
+          "sourceField": "plant",
+          "targetSection": "GENERALPLANTDATASTORAGE",
+          "targetField": "plant",
+          "sourceProperty": "plantID",
+          "testValue": "0001",
+          "numRows": 3
+        }
+      ],
+      "edgeCases": [
+        {
+          "id": "EDGE_03",
+          "name": "Numeric Boundary Assignment",
+          "description": "Assign numeric boundary value with precision check",
+          "sourceSection": "BASICDIMENSION",
+          "sourceField": "netWeight",
+          "targetSection": "BASICDIMENSION",
+          "targetField": "materialVolume",
+          "sourceProperty": "current",
+          "inputValue": "99999.999",
+          "expectedTarget": "99999.999",
+          "confirmLabel": "Net Weight"
+        },
+        {
+          "id": "EDGE_04",
+          "name": "Rapid Toggle ON/OFF 10x",
+          "description": "Toggle rule state ON/OFF 10 times in a row",
+          "sourceSection": "BASICDIMENSION",
+          "sourceField": "netWeight",
+          "targetSection": "BASICDIMENSION",
+          "targetField": "materialVolume",
+          "sourceProperty": "current",
+          "toggleCount": 10
+        }
+      ],
+      "notes": "Advanced: Basic S2S verify, Multi-Row R2R, Numeric boundary, Rapid toggle"
+    },
+
+    "ar-e2e-mm-06": {
+      "description": "E2E: BASICDIMENSION.netWeight → materialVolume",
+      "priority": "P0",
+      "templateName": "AUTO_MM01_ASSIGNMENT_RULE",
+      "objectType": "Product",
+      "adminRule": {
+        "sourceSection": "BASICDIMENSION",
+        "sourceField": "netWeight",
+        "targetSection": "BASICDIMENSION",
+        "targetField": "materialVolume",
+        "sourceProperty": "current"
+      },
+      "mainInputValue": "5.000",
+      "expectedAssignment": "5.000",
+      "confirmLabel": "Net Weight",
+      "sourceCR": "CR0000023786",
+      "notes": "E2E: Admin configures rule (BASICDIMENSION) → Main verifies assignment → Admin delete"
+    },
+
+    "ar-e2e-mm-07": {
+      "description": "Main: Full Workflow (Requestor → Approver → Steward) with Assignment UoM",
+      "priority": "P0",
+      "templateName": "AUTO_MM01_ASSIGNMENT_RULE",
+      "objectType": "Product",
+      "sourceCR": "CR0000023786",
+      "confirmLabel": "Material Number",
+      "adminRules": [
+        {
+          "sourceSection": "UNITSOFMEASURE",
+          "sourceField": "unitSpecificProductLength",
+          "targetSection": "UNITSOFMEASURE",
+          "targetField": "unitSpecificProductWidth"
+        },
+        {
+          "sourceSection": "UNITSOFMEASURE",
+          "sourceField": "unitSpecificProductLength",
+          "targetSection": "UNITSOFMEASURE",
+          "targetField": "unitSpecificProductHeight"
+        }
+      ],
+      "mainInputValue": "15.000",
+      "expectedAssignment": "15.000",
+      "unitOfDimension": "CM",
+      "stewardMainInputValue": "15,000",
+      "header": {
+        "description": "AR-E2E-MM-07: Full Workflow - Assignment Rule Verification UoM",
+        "priority": "High",
+        "reason": "New Product",
+        "notes": "Automation: Verify UNITSOFMEASURE assignment rule through full workflow"
+      },
+      "paths": [
+        {
+          "id": "PATH_HAPPY",
+          "flow": "Copy → Draft → Submit → Approve → Activate",
+          "expectedStatuses": {
+            "afterSubmit": "SUBMITTED",
+            "afterApprove": "APPROVED",
+            "activationStatus": "ACTIVATED"
+          }
+        },
+        {
+          "id": "PATH_REJECT",
+          "flow": "Copy → Draft → Submit → Reject → Resubmit → Approve → Activate",
+          "expectedStatuses": {
+            "afterSubmit": "SUBMITTED",
+            "afterReject": "REJECTED",
+            "afterResubmit": "SUBMITTED",
+            "afterApprove": "APPROVED",
+            "activationStatus": "ACTIVATED"
+          }
+        },
+        {
+          "id": "PATH_CANCEL",
+          "flow": "Copy → Draft → Submit → Cancel",
+          "expectedStatuses": {
+            "afterSubmit": "SUBMITTED",
+            "afterCancel": "CANCELLED"
+          }
+        }
+      ],
+      "notes": "E2E Workflow: 3 paths with UoM assignment value verification at each phase transition (value: 15.000, unit: CM)"
+    }
+  }
+}

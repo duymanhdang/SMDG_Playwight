@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Results — SimpleMDG Automation Hub</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/shared.css">
+<style>
+.filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.filters select, .filters input {
+  padding: 6px 10px; border: 1px solid var(--border-md); border-radius: var(--r);
+  background: var(--surface); color: var(--text); font-size: 12px; font-family: var(--sans);
+}
+
+.summary-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; padding: 16px; }
+.summary-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r); padding: 12px; text-align: center; }
+.summary-val { font-size: 20px; font-weight: 700; font-family: var(--mono); }
+.summary-lbl { font-size: 10px; text-transform: uppercase; letter-spacing: .07em; color: var(--text-4); margin-top: 2px; }
+.summary-card.pass .summary-val { color: var(--green); }
+.summary-card.fail .summary-val { color: var(--red); }
+.summary-card.flaky .summary-val { color: var(--orange); }
+
+.detail-actions { display: flex; gap: 8px; padding: 0 16px 16px; flex-wrap: wrap; }
+.error-cell { font-family: var(--mono); font-size: 11px; color: var(--red); max-width: 380px; white-space: pre-wrap; word-break: break-word; }
+.artifact-links { display: flex; gap: 6px; margin-top: 4px; flex-wrap: wrap; }
+.artifact-link { font-size: 9px; font-family: var(--mono); color: var(--blue); text-decoration: none; background: var(--blue-bg); border: 1px solid var(--blue-border); border-radius: 6px; padding: 1px 6px; }
+.artifact-link:hover { text-decoration: underline; }
+
+.ai-box { margin-top: 6px; padding: 8px 10px; border-radius: 6px; background: var(--blue-bg); border: 1px solid var(--blue-border); font-size: 11px; color: var(--text-2); }
+.ai-box-label { font-weight: 700; color: var(--blue); text-transform: uppercase; font-size: 9px; letter-spacing: .05em; margin-bottom: 3px; }
+.ai-confidence { font-size: 9px; padding: 1px 6px; border-radius: 8px; margin-left: 6px; text-transform: capitalize; background: var(--surface-3); color: var(--text-3); }
+.ai-diagnose-btn { font-size: 9px; font-family: var(--sans); color: var(--blue); background: var(--blue-bg); border: 1px solid var(--blue-border); border-radius: 6px; padding: 2px 7px; cursor: pointer; margin-top: 4px; }
+.ai-diagnose-btn:hover { background: var(--blue); color: #fff; }
+.ai-diagnose-btn:disabled { opacity: .5; cursor: wait; }
+
+.triage-select {
+  font-size: 10px; font-family: var(--sans); padding: 2px 4px; border-radius: 5px;
+  border: 1px solid var(--border-md); background: var(--surface); color: var(--text-2);
+}
+.triage-select.bug { border-color: var(--red-bdr); color: var(--red); }
+.triage-select.environment-issue { border-color: var(--orange-bdr); color: var(--orange); }
+.triage-select.flaky-ignore { border-color: var(--border-md); color: var(--text-4); }
+.triage-select.investigating { border-color: var(--blue-border); color: var(--blue); }
+.triage-note-btn { font-size: 9px; color: var(--text-4); background: none; border: none; cursor: pointer; text-decoration: underline; padding: 0; margin-top: 3px; }
+.triage-note-text { font-size: 10.5px; color: var(--text-3); margin-top: 3px; font-style: italic; }
+.triage-note-input { width: 100%; font-size: 10.5px; font-family: var(--sans); padding: 3px 6px; border-radius: 5px; border: 1px solid var(--border-md); background: var(--surface); color: var(--text); margin-top: 3px; }
+
+.category-bar-wrap { padding: 4px 16px 16px; display: flex; flex-direction: column; gap: 6px; }
+.category-row { display: flex; align-items: center; gap: 8px; font-size: 11px; }
+.category-name { width: 90px; flex-shrink: 0; color: var(--text-2); font-weight: 500; text-transform: capitalize; }
+.category-track { flex: 1; height: 8px; background: var(--surface-3); border-radius: 4px; overflow: hidden; }
+.category-fill { height: 100%; background: var(--red); border-radius: 4px; }
+.category-count { width: 24px; text-align: right; color: var(--text-3); font-family: var(--mono); }
+
+.back-link { display: inline-flex; align-items: center; gap: 6px; color: var(--text-3); text-decoration: none; font-size: 12px; margin-bottom: 4px; }
+.back-link:hover { color: var(--blue); }
+.gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; padding: 16px; }
+.gallery-item { border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; text-decoration: none; }
+.gallery-item img { width: 100%; height: 110px; object-fit: cover; display: block; background: var(--surface-3); }
+.gallery-item-label { font-size: 10px; color: var(--text-3); padding: 5px 7px; font-family: var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.quarantine-banner {
+  margin: 0 16px 12px; padding: 10px 14px; border-radius: var(--r);
+  background: var(--orange-bg); border: 1px solid var(--orange-bdr, var(--border)); color: var(--orange);
+  font-size: 12px; font-weight: 600;
+}
+.quarantine-banner ul { margin: 6px 0 0 18px; font-weight: 400; font-size: 11.5px; color: var(--text-2); }
+.git-context-line { font-size: 11px; color: var(--text-4); padding: 0 16px 8px; font-family: var(--mono); }
+.triage-focused { outline: 2px solid var(--blue); outline-offset: -2px; background: var(--blue-bg); }
+.triage-kbd-hint { font-size: 10.5px; color: var(--text-4); padding: 0 16px 8px; }
+.triage-kbd-hint kbd { font-family: var(--mono); background: var(--surface-3); border: 1px solid var(--border-md); border-radius: 4px; padding: 0 4px; }
+
+/* Run Timeline Strip (v1.5.0 item 1) — one cell per test, filled left-to-
+   right in execution order. Same 7-status color tokens as everywhere else. */
+.timeline-strip-wrap { padding: 0 16px 12px; }
+.timeline-strip-label { font-size: 10.5px; color: var(--text-4); margin-bottom: 5px; }
+.timeline-strip { display: flex; gap: 1.5px; height: 18px; flex-wrap: wrap; align-content: flex-start; }
+.timeline-cell { flex: 1 0 3px; max-width: 10px; height: 100%; border-radius: 1.5px; background: var(--surface-3); }
+.timeline-cell.passed { background: var(--green); }
+.timeline-cell.failed, .timeline-cell.timedOut { background: var(--red); }
+.timeline-cell.flaky { background: var(--orange); }
+.timeline-cell.skipped, .timeline-cell.interrupted { background: var(--gray); }
+
+/* v1.10.0 — list-view KPI cards + tag badges + row action menu, detail-view tabs */
+.row-tags { display: flex; gap: 4px; flex-wrap: wrap; }
+.tag-chip {
+  font-size: 9.5px; font-family: var(--mono); color: var(--text-3); background: var(--surface-3);
+  border: 1px solid var(--border-md); border-radius: 6px; padding: 1px 6px; white-space: nowrap;
+}
+
+.row-menu-wrap { position: relative; display: inline-block; }
+.row-menu-btn {
+  background: none; border: none; color: var(--text-4); font-size: 16px; line-height: 1; cursor: pointer;
+  padding: 2px 6px; border-radius: 5px; font-family: var(--sans);
+}
+.row-menu-btn:hover { background: var(--surface-3); color: var(--text); }
+.row-menu {
+  position: absolute; right: 0; top: 100%; z-index: 20; min-width: 150px; margin-top: 2px;
+  background: var(--surface); border: 1px solid var(--border-md); border-radius: var(--r); box-shadow: var(--shadow-md);
+  display: flex; flex-direction: column; padding: 4px;
+}
+.row-menu[hidden] { display: none; }
+.row-menu-item {
+  text-align: left; background: none; border: none; padding: 6px 10px; font-size: 12px; color: var(--text-2);
+  cursor: pointer; border-radius: 5px; text-decoration: none; font-family: var(--sans);
+}
+.row-menu-item:hover { background: var(--surface-2); color: var(--text); }
+.row-menu-item.btn-danger:hover { background: var(--red-bg); color: var(--red); }
+
+.results-tabs { display: flex; gap: 4px; padding: 0 16px; border-bottom: 1px solid var(--border); }
+.results-tab {
+  padding: 8px 4px; border: none; background: none; color: var(--text-3); font-size: var(--text-sm);
+  font-weight: 600; border-bottom: 2px solid transparent; cursor: pointer; font-family: var(--sans); margin-bottom: -1px;
+}
+.results-tab:hover { color: var(--text); }
+.results-tab.active { color: var(--blue); border-bottom-color: var(--blue); }
+.results-tab-panel[hidden] { display: none; }
+</style>
+</head>
+<body>
+<div id="shell-slot"></div>
+
+<div class="main">
+  <div class="topbar">
+    <div>
+      <div class="topbar-title">Results</div>
+      <div class="topbar-sub">Past test run history</div>
+    </div>
+  </div>
+  <div class="page-body" id="workspace">
+    <div class="spinner"></div>
+  </div>
+</div>
+
+<script src="/shared.js"></script>
+<script src="/deep-link.js"></script>
+<script src="/count-up.js"></script>
+<script>
+const params = new URLSearchParams(location.search);
+const runId  = params.get('id');
+let currentRun = null;
+let aiEnabled  = false;
+
+function fmtDate(ms) {
+  if (!ms) return '—';
+  const d = new Date(ms);
+  return d.toLocaleString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+function fmtDuration(ms) {
+  if (!ms || ms < 0) return '—';
+  const s = Math.round(ms / 1000);
+  return s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${s % 60}s`;
+}
+function statusBadge(status) {
+  const map = { running: 'Running', done: 'Done', failed: 'Failed', interrupted: 'Interrupted', cancelled: 'Cancelled', passed: 'Passed', skipped: 'Skipped', flaky: 'Flaky' };
+  return `<span class="badge ${status}">${map[status] || status}</span>`;
+}
+
+// ─────────────────────────────────────────
+// LIST VIEW
+// ─────────────────────────────────────────
+async function renderListView() {
+  const ws = $('workspace');
+  ws.innerHTML = `
+    <div id="statGrid" class="stat-grid" style="margin-bottom:16px">
+      <div class="skeleton-stat"><div class="skeleton skeleton-line w-40"></div><div class="skeleton skeleton-line w-60"></div><div class="skeleton skeleton-line w-40"></div></div>
+      <div class="skeleton-stat"><div class="skeleton skeleton-line w-40"></div><div class="skeleton skeleton-line w-60"></div><div class="skeleton skeleton-line w-40"></div></div>
+      <div class="skeleton-stat"><div class="skeleton skeleton-line w-40"></div><div class="skeleton skeleton-line w-60"></div><div class="skeleton skeleton-line w-40"></div></div>
+    </div>
+    <div class="panel">
+      <div class="panel-head">
+        <span class="panel-title">Run History</span>
+        <div class="filters">
+          <select id="fDays" onchange="loadStats(); loadList()">
+            <option value="7">Last 7 days</option>
+            <option value="14">Last 14 days</option>
+            <option value="30" selected>Last 30 days</option>
+            <option value="90">Last 90 days</option>
+          </select>
+          <select id="fStatus" onchange="loadList()">
+            <option value="">All statuses</option>
+            <option value="running">Running</option>
+            <option value="done">Done</option>
+            <option value="failed">Failed</option>
+            <option value="interrupted">Interrupted</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+          <select id="fSuite" onchange="loadList()"><option value="">All suites</option></select>
+          <select id="fTag" onchange="loadList()"><option value="">All tags</option></select>
+          <a class="btn-secondary" id="btnExportCsv" href="/api/runs/export/csv">Export CSV</a>
+        </div>
+      </div>
+      <div id="listBody">
+        <div class="skeleton-row"><div class="skeleton skeleton-line c1"></div><div class="skeleton skeleton-line c2"></div><div class="skeleton skeleton-line c3"></div><div class="skeleton skeleton-line c4"></div><div class="skeleton skeleton-line c5"></div><div class="skeleton skeleton-line c6"></div></div>
+        <div class="skeleton-row"><div class="skeleton skeleton-line c1"></div><div class="skeleton skeleton-line c2"></div><div class="skeleton skeleton-line c3"></div><div class="skeleton skeleton-line c4"></div><div class="skeleton skeleton-line c5"></div><div class="skeleton skeleton-line c6"></div></div>
+        <div class="skeleton-row"><div class="skeleton skeleton-line c1"></div><div class="skeleton skeleton-line c2"></div><div class="skeleton skeleton-line c3"></div><div class="skeleton skeleton-line c4"></div><div class="skeleton skeleton-line c5"></div><div class="skeleton skeleton-line c6"></div></div>
+        <div class="skeleton-row"><div class="skeleton skeleton-line c1"></div><div class="skeleton skeleton-line c2"></div><div class="skeleton skeleton-line c3"></div><div class="skeleton skeleton-line c4"></div><div class="skeleton skeleton-line c5"></div><div class="skeleton skeleton-line c6"></div></div>
+        <div class="skeleton-row"><div class="skeleton skeleton-line c1"></div><div class="skeleton skeleton-line c2"></div><div class="skeleton skeleton-line c3"></div><div class="skeleton skeleton-line c4"></div><div class="skeleton skeleton-line c5"></div><div class="skeleton skeleton-line c6"></div></div>
+      </div>
+    </div>`;
+  await populateSuiteFilter();
+  // Report Center (and any other page) can deep-link here with ?suite=X /
+  // ?status=Y to pre-filter the list — small addition, no new browsing UI.
+  const preSuite  = params.get('suite');
+  const preStatus = params.get('status');
+  if (preSuite && $('fSuite'))  $('fSuite').value  = preSuite;
+  if (preStatus && $('fStatus')) $('fStatus').value = preStatus;
+  await Promise.all([loadStats(), loadList()]);
+}
+
+let suiteTagsById = {}; // suiteId -> string[] tags, populated once for the Tags filter + list column
+async function populateSuiteFilter() {
+  try {
+    const data = await fetch('/api/suites').then(r => r.json());
+    if (!data.ok) return;
+    const sel = $('fSuite');
+    data.suites.forEach(s => {
+      const opt = document.createElement('option');
+      opt.value = s.id; opt.textContent = s.short;
+      sel.appendChild(opt);
+      suiteTagsById[s.id] = s.tags || [];
+    });
+    const allTags = Array.from(new Set(data.suites.flatMap(s => s.tags || []))).sort();
+    const tagSel = $('fTag');
+    allTags.forEach(t => {
+      const opt = document.createElement('option');
+      opt.value = t; opt.textContent = t;
+      tagSel.appendChild(opt);
+    });
+  } catch (_) {}
+}
+
+// v1.10.0 — KPI strip for the Results list, same run-level stats + delta
+// pattern as Execution Center (GET /api/execution/stats, computeRunStats()).
+// Reflects the "Last N days" dropdown only — not the Status/Suite/Tag table
+// filters below, same as Execution Center's KPI strip having no suite scope.
+const RESULTS_STAT_ICONS = {
+  totalRuns:     '<svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>',
+  passed:        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="20 6 9 17 4 12"/></svg>',
+  failed:        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>',
+  interrupted:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>',
+};
+function resultsDeltaHtml(value, positiveIsGood) {
+  if (value === null || value === undefined) return '<span class="stat-delta" style="color:var(--text-4)">No data for prior period</span>';
+  const good = positiveIsGood ? value >= 0 : value <= 0;
+  const arrow = value >= 0 ? '↑' : '↓';
+  return `<span class="stat-delta ${good ? 'up' : 'down'}">${arrow} ${Math.abs(value)}% vs prior period</span>`;
+}
+async function loadStats() {
+  try {
+    const days = $('fDays').value;
+    const data = await fetch(`/api/execution/stats?days=${days}`).then(r => r.json());
+    if (!data.ok) throw new Error(data.error);
+    const deltas = data.deltas || {};
+    const cards = [
+      { key: 'totalRuns',   label: 'Total runs',  value: data.totalRuns, color: 'var(--blue)',  delta: resultsDeltaHtml(deltas.totalRuns, true) },
+      { key: 'passed',      label: 'Passed',      value: `${data.passed} ${data.passedRate === null ? '' : `(${data.passedRate}%)`}`, color: 'var(--green)', delta: resultsDeltaHtml(deltas.passed, true) },
+      { key: 'failed',      label: 'Failed',      value: `${data.failed} ${data.failedRate === null ? '' : `(${data.failedRate}%)`}`, color: 'var(--red)', delta: resultsDeltaHtml(deltas.failed, false) },
+      { key: 'interrupted', label: 'Interrupted', value: `${data.interrupted} ${data.interruptedRate === null ? '' : `(${data.interruptedRate}%)`}`, color: 'var(--gray)', delta: resultsDeltaHtml(deltas.interrupted, false) },
+    ];
+    $('statGrid').innerHTML = cards.map(c => `
+      <div class="stat-card">
+        <div class="stat-icon-row">
+          <div class="stat-icon" style="--stat-color:${c.color}">${RESULTS_STAT_ICONS[c.key]}</div>
+          <div class="stat-label">${c.label}</div>
+        </div>
+        <div class="stat-value">${c.value}</div>
+        ${c.delta}
+      </div>`).join('');
+  } catch (err) {
+    $('statGrid').innerHTML = `<div class="empty">⚠ ${err.message}</div>`;
+  }
+}
+
+function currentFilterQuery() {
+  const status = $('fStatus') ? $('fStatus').value : '';
+  const suite  = $('fSuite')  ? $('fSuite').value  : '';
+  const qs = new URLSearchParams();
+  if (status) qs.set('status', status);
+  if (suite)  qs.set('suite', suite);
+  return qs;
+}
+
+// ─────────────────────────────────────────
+// Deep-link URL state (v1.5.0 item 2) — the ?suite=/?status= filters already
+// had read-support (Report Center's drill-down links, v1.1); this adds the
+// write side (history.replaceState on every filter change) via the shared
+// deep-link.js helper, so a QA can copy the address bar and get the exact
+// filtered view back.
+// ─────────────────────────────────────────
+const RESULTS_LIST_DEEP_LINK_SPEC = {
+  suite:  { key: 'suite',  default: '' },
+  status: { key: 'status', default: '' },
+};
+function syncListDeepLink() {
+  syncDeepLinkState(currentFilterState(), RESULTS_LIST_DEEP_LINK_SPEC);
+}
+function currentFilterState() {
+  return {
+    suite:  $('fSuite')  ? $('fSuite').value  : '',
+    status: $('fStatus') ? $('fStatus').value : '',
+  };
+}
+
+async function loadList() {
+  syncListDeepLink();
+  const qs = currentFilterQuery();
+  qs.set('limit', '200');
+  const csvQs = currentFilterQuery();
+  $('btnExportCsv').href = `/api/runs/export/csv?${csvQs}`;
+  try {
+    const data = await fetch(`/api/runs/history?${qs}`).then(r => r.json());
+    if (!data.ok) throw new Error(data.error);
+    // Tag filter has no server-side support (tags belong to the suite, not
+    // the run row) — filtered client-side over the already-fetched page.
+    const tag = $('fTag') ? $('fTag').value : '';
+    const runs = tag ? data.runs.filter(r => (suiteTagsById[r.suiteName] || []).includes(tag)) : data.runs;
+    renderListTable(runs, data.total);
+  } catch (err) {
+    $('listBody').innerHTML = `<div class="empty">⚠ ${err.message}</div>`;
+  }
+}
+
+function renderListTable(runs, total) {
+  if (!runs.length) {
+    $('listBody').innerHTML = `
+      <div class="empty-illustration">
+        <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="18" y="26" width="64" height="52" rx="6" stroke="var(--border-md)" stroke-width="2.5"/>
+          <line x1="18" y1="40" x2="82" y2="40" stroke="var(--border-md)" stroke-width="2.5"/>
+          <circle cx="27" cy="33" r="1.6" fill="var(--text-4)"/>
+          <circle cx="34" cy="33" r="1.6" fill="var(--text-4)"/>
+          <polygon points="44,52 44,68 60,60" fill="var(--blue)" opacity=".55"/>
+        </svg>
+        <div class="empty-heading">No runs saved yet</div>
+        <div class="empty-copy">Start a test from Test Explorer to get started.</div>
+      </div>`;
+    return;
+  }
+  $('listBody').innerHTML = `
+    <table>
+      <thead><tr>
+        <th style="width:22%">Run</th><th style="width:13%">Suite</th><th style="width:16%">Tags</th><th style="width:10%">Status</th>
+        <th style="width:11%">Result</th><th style="width:15%">Started</th><th style="width:9%;text-align:right">Duration</th><th style="width:4%"></th>
+      </tr></thead>
+      <tbody>
+        ${runs.map((r, i) => `
+          <tr class="clickable row-fade-in" style="animation-delay:${staggerDelayMs(i)}ms" onclick="location.href='/results.html?id=${r.id}'">
+            <td class="col-mono">${escapeHtml((r.label || r.id).replace(/^\[(SUITE|SPEC)\]\s*/, ''))}</td>
+            <td>${escapeHtml(r.suiteName || '—')}</td>
+            <td><div class="row-tags">${(suiteTagsById[r.suiteName] || []).map(t => `<span class="tag-chip">${escapeHtml(t)}</span>`).join('') || '—'}</div></td>
+            <td>${statusBadge(r.status)}</td>
+            <td style="font-family:var(--mono);font-size:11px">${r.passed || 0}✓ / ${r.failed || 0}✗${r.skipped ? ` / ${r.skipped}⊘` : ''}</td>
+            <td style="color:var(--text-3)">${fmtDate(r.startTime)}</td>
+            <td style="text-align:right;color:var(--text-3);font-family:var(--mono)">${fmtDuration(r.endTime ? r.endTime - r.startTime : null)}</td>
+            <td style="text-align:right" onclick="event.stopPropagation()">${renderRowMenu(r)}</td>
+          </tr>`).join('')}
+      </tbody>
+    </table>`;
+}
+
+// v1.10.0 — per-row "…" action menu (Open report / Retry failed / Delete),
+// reusing existing endpoints already wired on the detail page — no new
+// server routes. Menu open/close state lives in the DOM (data-open) rather
+// than JS state, since the table is fully re-rendered on every filter change.
+function renderRowMenu(r) {
+  const retryItem = r.failed > 0
+    ? `<button class="row-menu-item" onclick="rowRetryFailed(event, '${r.id}')">Retry failed (${r.failed})</button>`
+    : '';
+  return `<div class="row-menu-wrap">
+    <button class="row-menu-btn" onclick="toggleRowMenu(event, '${r.id}')" title="Actions">⋯</button>
+    <div class="row-menu" id="row-menu-${cssId(r.id)}" hidden>
+      <a class="row-menu-item" href="/api/runs/${r.id}/report" target="_blank">Open HTML Report</a>
+      ${retryItem}
+      <a class="row-menu-item" href="/results.html?id=${r.id}">View details</a>
+      <button class="row-menu-item btn-danger" onclick="rowDeleteRun(event, '${r.id}')">Delete</button>
+    </div>
+  </div>`;
+}
+function toggleRowMenu(evt, id) {
+  evt.stopPropagation();
+  const menu = $(`row-menu-${cssId(id)}`);
+  const willOpen = menu.hasAttribute('hidden');
+  document.querySelectorAll('.row-menu').forEach(m => m.setAttribute('hidden', ''));
+  if (willOpen) menu.removeAttribute('hidden');
+}
+document.addEventListener('click', () => document.querySelectorAll('.row-menu').forEach(m => m.setAttribute('hidden', '')));
+
+async function rowRetryFailed(evt, id) {
+  evt.stopPropagation();
+  try {
+    const data = await fetch(`/api/runs/${id}/rerun-failed`, { method: 'POST' }).then(r => r.json());
+    if (!data.ok) throw new Error(data.error);
+    showToast(`Rerun started: ${data.label}`);
+  } catch (err) {
+    showToast('⚠ ' + err.message);
+  }
+}
+async function rowDeleteRun(evt, id) {
+  evt.stopPropagation();
+  if (!confirm('Delete this run from history? Its report and detailed data will be permanently removed.')) return;
+  try {
+    const data = await fetch(`/api/runs/${id}`, { method: 'DELETE' }).then(r => r.json());
+    if (!data.ok) throw new Error(data.error);
+    showToast('Run deleted');
+    loadList();
+  } catch (err) {
+    showToast('⚠ ' + err.message);
+  }
+}
+
+// ─────────────────────────────────────────
+// DETAIL VIEW
+// ─────────────────────────────────────────
+async function renderDetailView(id) {
+  const ws = $('workspace');
+  ws.innerHTML = '<div class="spinner"></div>';
+  try {
+    const [runData, settingsData] = await Promise.all([
+      fetch(`/api/runs/${encodeURIComponent(id)}`).then(r => r.json()),
+      fetch('/api/settings').then(r => r.json()).catch(() => ({ ok: false })),
+    ]);
+    if (!runData.ok) throw new Error(runData.error);
+    const run = runData.run;
+    currentRun = run;
+    aiEnabled  = !!(settingsData.ok && settingsData.settings.aiEnabled && settingsData.settings.aiKeySet);
+    const s = run.summary || {};
+
+    const rerunBtn = (s.failed > 0) ? `<button class="btn-secondary" onclick="rerunFailed('${run.id}')">Rerun failed (${s.failed})</button>` : '';
+    const aiHint = !aiEnabled && s.failed > 0
+      ? `<span style="font-size:11px;color:var(--text-4)">AI diagnosis is off — enable it on <a href="/settings.html" style="color:var(--blue)">Settings</a> to get suggested root causes.</span>` : '';
+
+    const qSkipped = run.quarantineSkipped || [];
+    // §6.4 "false confidence" fix — the pass-rate above is only ever computed
+    // over EXECUTED tests; this banner makes quarantined-and-excluded tests
+    // visible so a clean summary can't be mistaken for full coverage.
+    const quarantineBanner = qSkipped.length ? `
+      <div class="quarantine-banner">
+        ⚠ ${qSkipped.length} test${qSkipped.length === 1 ? '' : 's'} quarantined and excluded from this run
+        <ul>${qSkipped.map(q => `<li>${escapeHtml(q.testKey)} — ${escapeHtml(q.reason)}</li>`).join('')}</ul>
+      </div>` : '';
+
+    const ctx = run.gitContext || {};
+    const gitLine = (ctx.branch || ctx.commitSha) ? `
+      <div class="git-context-line">branch: ${escapeHtml(ctx.branch || 'n/a')} · commit: ${escapeHtml((ctx.commitSha || '').slice(0, 12) || 'n/a')}${ctx.dirty ? ' · dirty working tree' : ''}</div>` : '';
+
+    const screenshots = (run.tests || []).flatMap(t => (t.artifacts?.screenshots || []).filter(s => s.url).map(s => ({ ...s, testTitle: t.title })));
+    const galleryHtml = screenshots.length ? `
+      <div class="gallery-grid">
+        ${screenshots.map(s => `<a class="gallery-item" href="${s.url}" target="_blank" title="${escapeHtml(s.testTitle)}">
+          <img src="${s.url}" loading="lazy" alt="">
+          <div class="gallery-item-label">${escapeHtml(s.testTitle)}</div>
+        </a>`).join('')}
+      </div>` : '';
+
+    ws.innerHTML = `
+      <a class="back-link" href="/results.html">← Back to list</a>
+      <div class="panel">
+        <div class="panel-head">
+          <span class="panel-title" id="runTitleSlot"></span>
+          ${statusBadge(run.status)}
+        </div>
+        ${gitLine}
+        ${quarantineBanner}
+        <div class="timeline-strip-wrap" id="timelineStripWrap" hidden>
+          <div class="timeline-strip-label">Run timeline (order tests completed in)</div>
+          <div class="timeline-strip" id="timelineStrip"></div>
+        </div>
+        <div class="summary-grid">
+          <div class="summary-card"><div class="summary-val">${s.totalTests || 0}</div><div class="summary-lbl">Total</div></div>
+          <div class="summary-card pass"><div class="summary-val">${s.passed || 0}</div><div class="summary-lbl">Passed</div></div>
+          <div class="summary-card fail"><div class="summary-val">${s.failed || 0}</div><div class="summary-lbl">Failed</div></div>
+          <div class="summary-card flaky"><div class="summary-val">${s.flaky || 0}</div><div class="summary-lbl">Flaky</div></div>
+          <div class="summary-card"><div class="summary-val">${s.skipped || 0}</div><div class="summary-lbl">Skipped</div></div>
+        </div>
+        ${(run.categoryBreakdown && run.categoryBreakdown.length) ? renderCategoryBars(run.categoryBreakdown) : ''}
+        <div class="detail-actions">
+          <a class="btn-secondary" href="/api/runs/${run.id}/report" target="_blank">View HTML Report</a>
+          <a class="btn-secondary" href="/api/runs/${run.id}/print" target="_blank">Print / Save as PDF</a>
+          <a class="btn-secondary" href="/api/runs/${run.id}/export/pdf" target="_blank">Export PDF summary</a>
+          <a class="btn-secondary" href="/api/runs/${run.id}/export/json">Export JSON</a>
+          ${rerunBtn}
+          <a class="btn-secondary" href="/compare.html?a=${run.id}">Compare with…</a>
+          <button class="btn-secondary btn-danger" onclick="deleteRun('${run.id}')">Delete this run</button>
+          ${aiHint}
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="results-tabs">
+          <button class="results-tab active" id="resultsTabBtnTests" onclick="switchResultsTab('tests')">Tests (${(run.tests || []).length})</button>
+          <button class="results-tab" id="resultsTabBtnArtifacts" onclick="switchResultsTab('artifacts')">Artifacts (${screenshots.length})</button>
+          <button class="results-tab" id="resultsTabBtnAi" onclick="switchResultsTab('ai')">AI Analysis</button>
+        </div>
+        <div class="results-tab-panel" id="resultsTabPanelTests">
+          <div id="testsTableWrap" style="padding:0 4px">${renderTestsTable(run.tests || [])}</div>
+        </div>
+        <div class="results-tab-panel" id="resultsTabPanelArtifacts" hidden>
+          ${galleryHtml || '<div class="empty">No screenshots captured for this run.</div>'}
+        </div>
+        <div class="results-tab-panel" id="resultsTabPanelAi" hidden>
+          <div id="aiAnalysisWrap" style="padding:12px 16px">${renderAiAnalysisTab(run.tests || [])}</div>
+        </div>
+      </div>`;
+
+    // Titles/labels are attacker-influenced content — set via textContent,
+    // never interpolated into an HTML string (§3.9).
+    const runTitleSlot = $('runTitleSlot');
+    if (runTitleSlot) runTitleSlot.textContent = (run.label || run.id).replace(/^\[(SUITE|SPEC)\]\s*/, '');
+    wireTestsTable(run.tests || []);
+    setupKeyboardTriage(run.tests || []);
+    loadTimelineStrip(run.id);
+  } catch (err) {
+    ws.innerHTML = `<a class="back-link" href="/results.html">← Back to list</a><div class="empty">⚠ ${err.message}</div>`;
+  }
+}
+
+// v1.10.0 — Tests / Artifacts / AI Analysis tabs on the run detail page
+// (was one long page: test table, then a separate screenshot gallery below).
+function switchResultsTab(tab) {
+  $('resultsTabBtnTests').classList.toggle('active', tab === 'tests');
+  $('resultsTabBtnArtifacts').classList.toggle('active', tab === 'artifacts');
+  $('resultsTabBtnAi').classList.toggle('active', tab === 'ai');
+  $('resultsTabPanelTests').hidden = tab !== 'tests';
+  $('resultsTabPanelArtifacts').hidden = tab !== 'artifacts';
+  $('resultsTabPanelAi').hidden = tab !== 'ai';
+}
+
+// Gathers AI diagnoses already run for this run's failed/flaky tests (via the
+// existing per-test "AI Diagnose" button on the Tests tab) into one place —
+// not a new whole-run AI analysis feature, just a re-surfacing of the same
+// per-test diagnoses set earlier.
+function renderAiAnalysisTab(tests) {
+  const diagnosed = tests.filter(t => t.aiDiagnosis);
+  const failing = tests.filter(t => t.status === 'failed' || t.status === 'flaky');
+  if (!failing.length) return '<div class="empty">No failed or flaky tests in this run.</div>';
+  if (!diagnosed.length) {
+    return `<div class="empty">No AI diagnoses yet. Open the <a href="#" onclick="switchResultsTab('tests');return false;" style="color:var(--blue)">Tests tab</a> and click "AI Diagnose" on a failed test.</div>`;
+  }
+  return diagnosed.map(t => `
+    <div style="margin-bottom:12px">
+      <div style="font-family:var(--mono);font-size:12px;font-weight:600;color:var(--text);margin-bottom:4px">${escapeHtml(t.title)}</div>
+      ${renderAiBox(t.aiDiagnosis)}
+    </div>`).join('');
+}
+
+async function rerunFailed(id) {
+  try {
+    const data = await fetch(`/api/runs/${id}/rerun-failed`, { method: 'POST' }).then(r => r.json());
+    if (!data.ok) throw new Error(data.error);
+    showToast(`Rerun started: ${data.label}`);
+  } catch (err) {
+    showToast('⚠ ' + err.message);
+  }
+}
+
+function renderCategoryBars(breakdown) {
+  const max = Math.max(...breakdown.map(b => b.count), 1);
+  return `<div class="category-bar-wrap">
+    ${breakdown.map(b => `
+      <div class="category-row">
+        <span class="category-name">${b.category}</span>
+        <div class="category-track"><div class="category-fill" style="width:${(b.count / max * 100).toFixed(0)}%"></div></div>
+        <span class="category-count">${b.count}</span>
+      </div>`).join('')}
+  </div>`;
+}
+
+function renderArtifactLinks(artifacts) {
+  if (!artifacts) return '';
+  const items = [];
+  for (const shot of (artifacts.screenshots || [])) if (shot.url) items.push(`<a class="artifact-link" href="${shot.url}" target="_blank">screenshot</a>`);
+  for (const vid of (artifacts.videos || [])) if (vid.url) items.push(`<a class="artifact-link" href="${vid.url}" target="_blank">video</a>`);
+  for (const tr of (artifacts.traces || [])) if (tr.url) items.push(`<a class="artifact-link" href="${tr.url}" target="_blank" title="Open with: npx playwright show-trace">trace</a>`);
+  return items.length ? `<div class="artifact-links">${items.join('')}</div>` : '';
+}
+
+function renderAiBox(diagnosis) {
+  if (!diagnosis) return '';
+  return `<div class="ai-box">
+    <div class="ai-box-label">AI diagnosis <span class="ai-confidence">${diagnosis.confidence || 'unknown'} confidence</span></div>
+    <div><strong>Root cause:</strong> ${escapeHtml(diagnosis.rootCause || '—')}</div>
+    <div style="margin-top:3px"><strong>Suggestion:</strong> ${escapeHtml(diagnosis.suggestion || '—')}</div>
+  </div>`;
+}
+
+// §3.9 — test titles and notes are attacker-influenced content (they come
+// from .spec.ts source, but treat them as untrusted regardless). No raw
+// interpolation into HTML text, and no inline onclick="...('${title}')"
+// handlers built from them (those are trivially breakable by a title
+// containing a quote — see escapeAttr's old single-quote-only escaping).
+// Instead: escape everything that goes into HTML text/attribute contexts,
+// and pass titles/ids via data-* attributes wired up with addEventListener
+// in wireTestsTable() below.
+function renderTestsTable(tests) {
+  if (!tests.length) return '<div class="empty">No per-test data available for this run (it may predate this feature).</div>';
+  const order = { failed: 0, flaky: 1, skipped: 2, passed: 3 };
+  const sorted = [...tests].sort((a, b) => (order[a.status] ?? 9) - (order[b.status] ?? 9));
+  const triageOptions = ['', 'bug', 'environment-issue', 'flaky-ignore', 'investigating'];
+  const triageLabel = { '': '— set —', bug: 'Bug', 'environment-issue': 'Environment issue', 'flaky-ignore': 'Flaky, ignore', investigating: 'Investigating' };
+  return `<table>
+    <thead><tr>
+      <th style="width:26%">Test</th><th style="width:9%">Status</th><th style="width:9%">Category</th>
+      <th style="width:9%;text-align:right">Duration</th><th style="width:31%">Error / Artifacts</th><th style="width:16%">Triage</th>
+    </tr></thead>
+    <tbody>
+      ${sorted.map(t => {
+        const isFailure = t.status === 'failed' || t.status === 'flaky';
+        const triageCell = isFailure ? `
+          <select class="triage-select js-triage-select ${t.triage ? t.triage.status : ''}" data-title="${escapeAttr(t.title)}" data-elid="${cssId(t.id)}">
+            ${triageOptions.map(o => `<option value="${o}" ${t.triage && t.triage.status === o ? 'selected' : ''}>${triageLabel[o]}</option>`).join('')}
+          </select>
+          <div id="triage-note-wrap-${cssId(t.id)}">
+            ${t.triage && t.triage.note ? `<div class="triage-note-text">"${escapeHtml(t.triage.note)}"</div>` : ''}
+            <button class="triage-note-btn js-edit-note-btn" data-title="${escapeAttr(t.title)}" data-elid="${cssId(t.id)}" data-note="${escapeAttr(t.triage ? t.triage.note || '' : '')}">${t.triage && t.triage.note ? 'edit note' : '+ add note'}</button>
+          </div>` : '—';
+        return `
+        <tr id="test-row-${cssId(t.id)}">
+          <td class="col-mono"></td>
+          <td>${statusBadge(t.status)}</td>
+          <td>${t.category ? `<span class="badge other">${t.category}</span>` : '—'}</td>
+          <td style="text-align:right;font-family:var(--mono);color:var(--text-3)">${fmtDuration(t.duration)}</td>
+          <td>
+            <div class="error-cell">${t.error ? escapeHtml(truncate(t.error, 300)) : '—'}</div>
+            ${renderArtifactLinks(t.artifacts)}
+            ${isFailure && aiEnabled ? `
+              <div id="ai-slot-${cssId(t.id)}">
+                ${t.aiDiagnosis ? renderAiBox(t.aiDiagnosis) : `<button class="ai-diagnose-btn js-ai-diagnose-btn" data-testid="${escapeAttr(t.id)}">AI Diagnose</button>`}
+              </div>` : ''}
+          </td>
+          <td>${triageCell}</td>
+        </tr>`;
+      }).join('')}
+    </tbody>
+  </table>`;
+}
+
+// Fills in test titles via textContent (never HTML), and wires up the
+// data-* driven controls rendered above via addEventListener instead of
+// inline onclick/onchange.
+function wireTestsTable(tests) {
+  for (const t of tests) {
+    const row = document.getElementById(`test-row-${cssId(t.id)}`);
+    if (!row) continue;
+    const titleCell = row.querySelector('td.col-mono');
+    if (titleCell) titleCell.textContent = t.title;
+  }
+  document.querySelectorAll('.js-triage-select').forEach(el => {
+    el.addEventListener('change', () => saveTriageStatus(el.dataset.title, el.value, el.dataset.elid));
+  });
+  document.querySelectorAll('.js-edit-note-btn').forEach(el => {
+    el.addEventListener('click', () => editTriageNote(el.dataset.title, el.dataset.elid, el.dataset.note || ''));
+  });
+  document.querySelectorAll('.js-ai-diagnose-btn').forEach(el => {
+    el.addEventListener('click', () => diagnoseTest(el.dataset.testid));
+  });
+}
+
+async function saveTriageStatus(title, status, elId) {
+  try {
+    // §3.10 — send `status` as-is (including '' for "— set —") so the server
+    // can tell "clear it" apart from "field wasn't sent". The old code sent
+    // `status || undefined`, which turned '' into undefined, JSON.stringify
+    // dropped it entirely, and the server silently kept the previous status
+    // while still showing a "Triage updated" success toast.
+    const data = await fetch('/api/triage', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ suiteName: currentRun.suiteName, title, status }),
+    }).then(r => r.json());
+    if (!data.ok) throw new Error(data.error);
+    const t = (currentRun.tests || []).find(x => cssId(x.id) === elId);
+    if (t) t.triage = data.entry || null;
+    const selectEl = document.querySelector(`.js-triage-select[data-elid="${elId}"]`);
+    if (selectEl) selectEl.className = `triage-select js-triage-select ${data.entry ? data.entry.status : ''}`;
+    showToast(data.cleared ? 'Triage cleared' : 'Triage updated');
+  } catch (err) {
+    showToast('⚠ ' + err.message);
+  }
+}
+
+// §3.9 — no inline onclick built from title/note strings (an inline handler
+// attribute is JS source once the browser decodes HTML entities out of it,
+// so escaping for HTML-attribute context alone does not stop a stray quote
+// in a title/note from breaking out of the JS string literal). Build the
+// button with a data-* attribute + addEventListener instead.
+function editTriageNote(title, elId, currentNote) {
+  const wrap = $(`triage-note-wrap-${elId}`);
+  wrap.innerHTML = `
+    <input type="text" class="triage-note-input" id="triage-note-input-${elId}" value="${escapeAttr(currentNote)}" placeholder="Short note…">
+    <button class="triage-note-btn js-save-note-btn" data-title="${escapeAttr(title)}" data-elid="${elId}">save</button>`;
+  const btn = wrap.querySelector('.js-save-note-btn');
+  btn.addEventListener('click', () => saveTriageNote(btn.dataset.title, btn.dataset.elid));
+  $(`triage-note-input-${elId}`).focus();
+}
+
+async function saveTriageNote(title, elId) {
+  const note = $(`triage-note-input-${elId}`).value;
+  try {
+    const t = (currentRun.tests || []).find(x => cssId(x.id) === elId);
+    const status = t && t.triage ? t.triage.status : undefined;
+    const data = await fetch('/api/triage', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ suiteName: currentRun.suiteName, title, status, note }),
+    }).then(r => r.json());
+    if (!data.ok) throw new Error(data.error);
+    if (t) t.triage = data.entry;
+    const wrap = $(`triage-note-wrap-${elId}`);
+    wrap.innerHTML = `
+      ${note ? `<div class="triage-note-text"></div>` : ''}
+      <button class="triage-note-btn js-edit-note-btn" data-title="${escapeAttr(title)}" data-elid="${elId}" data-note="${escapeAttr(note)}">${note ? 'edit note' : '+ add note'}</button>`;
+    if (note) wrap.querySelector('.triage-note-text').textContent = `"${note}"`;
+    const editBtn = wrap.querySelector('.js-edit-note-btn');
+    editBtn.addEventListener('click', () => editTriageNote(editBtn.dataset.title, editBtn.dataset.elid, editBtn.dataset.note || ''));
+    showToast('Note saved');
+  } catch (err) {
+    showToast('⚠ ' + err.message);
+  }
+}
+
+function cssId(str) { return String(str).replace(/[^A-Za-z0-9_-]/g, '_'); }
+// §3.9 — escape for safe use inside an HTML attribute value (both quote
+// styles), not just JS-string-literal escaping of a single quote. Previously
+// only `'` was escaped, so a `"` in a test title (e.g. verify "Save" button)
+// broke out of the surrounding double-quoted attribute.
+function escapeAttr(str) {
+  return String(str).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+async function diagnoseTest(testId) {
+  const slot = $(`ai-slot-${cssId(testId)}`);
+  const btn = slot.querySelector('button');
+  if (btn) { btn.disabled = true; btn.textContent = 'Diagnosing…'; }
+  try {
+    const data = await fetch('/api/ai/diagnose', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ runId: currentRun.id, testId }),
+    }).then(r => r.json());
+    if (!data.ok) throw new Error(data.error);
+    slot.innerHTML = renderAiBox(data.diagnosis);
+    const t = (currentRun.tests || []).find(x => x.id === testId);
+    if (t) t.aiDiagnosis = data.diagnosis;
+    const aiWrap = $('aiAnalysisWrap');
+    if (aiWrap) aiWrap.innerHTML = renderAiAnalysisTab(currentRun.tests || []);
+  } catch (err) {
+    slot.innerHTML = `<div class="ai-box" style="border-color:var(--red-bdr);background:var(--red-bg);color:var(--red)">⚠ ${escapeHtml(err.message)}</div>`;
+  }
+}
+
+function truncate(str, n) { return str.length > n ? str.slice(0, n) + '…' : str; }
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+}
+
+async function deleteRun(id) {
+  if (!confirm('Delete this run from history? Its report and detailed data will be permanently removed.')) return;
+  try {
+    const data = await fetch(`/api/runs/${id}`, { method: 'DELETE' }).then(r => r.json());
+    if (!data.ok) throw new Error(data.error);
+    location.href = '/results.html';
+  } catch (err) {
+    alert('⚠ ' + err.message);
+  }
+}
+
+// ─────────────────────────────────────────
+// Run Timeline Strip (v1.5.0 item 1) — static "shape of this run" for a
+// completed run, built from events.ndjson if it still exists (see
+// GET /api/runs/:id/events in server.js; the file is cleaned up eventually,
+// so this only works for recent runs — expected, no new persistence added
+// here). Execution Center's live view (still-running runs) reuses the same
+// existing SSE connection to build the live version of this strip instead
+// of fetching this endpoint.
+// ─────────────────────────────────────────
+async function loadTimelineStrip(id) {
+  try {
+    const data = await fetch(`/api/runs/${encodeURIComponent(id)}/events`).then(r => r.json());
+    if (!data.ok || !data.exists || !data.events.length) return; // stays hidden — expected for older/cleaned-up runs
+    const beginEvent = data.events.find(e => e.type === 'begin');
+    const testEndEvents = data.events.filter(e => e.type === 'testEnd');
+    if (!testEndEvents.length) return;
+    const total = (beginEvent && beginEvent.totalTests) || testEndEvents.length;
+    renderTimelineStrip(testEndEvents, total);
+  } catch (_) {
+    /* the strip is a nice-to-have visual — never break the page over it */
+  }
+}
+function renderTimelineStrip(testEndEvents, total) {
+  const wrap = $('timelineStripWrap');
+  const strip = $('timelineStrip');
+  if (!wrap || !strip) return;
+  const cells = testEndEvents.map(e =>
+    `<div class="timeline-cell ${e.status || ''}" title="${escapeAttr(e.title || '')}: ${e.status || ''}"></div>`).join('');
+  const missing = Math.max(0, total - testEndEvents.length);
+  strip.innerHTML = cells + '<div class="timeline-cell" title="Not yet completed"></div>'.repeat(missing);
+  wrap.hidden = false;
+}
+
+// ─────────────────────────────────────────
+// Keyboard-first triage (v1.5.0 item 5) — j/k move a "focused" row through
+// failed/flaky tests, b/f set triage status directly, q opens the
+// quarantine flow (reason+requestedBy required — see launcherQuarantineTest
+// in shared.js, reused here so there's exactly one quarantine prompt flow
+// in the codebase). Bare keys, so they must stay inert whenever focus is in
+// a text input/textarea/select on the page (e.g. the triage note field) —
+// same "standard vim-style list nav" convention noted in the task brief.
+// ─────────────────────────────────────────
+let triageFocusList = [];
+let triageFocusIndex = -1;
+
+function setupKeyboardTriage(tests) {
+  triageFocusList = tests.filter(t => t.status === 'failed' || t.status === 'flaky');
+  triageFocusIndex = -1;
+  if (!document.getElementById('triageKbdHint')) {
+    const actionsBar = document.querySelector('.detail-actions');
+    if (actionsBar && triageFocusList.length) {
+      const hint = document.createElement('div');
+      hint.id = 'triageKbdHint';
+      hint.className = 'triage-kbd-hint';
+      hint.innerHTML = 'Keyboard triage: <kbd>j</kbd>/<kbd>k</kbd> move · <kbd>b</kbd> bug · <kbd>f</kbd> flaky-ignore · <kbd>q</kbd> quarantine';
+      actionsBar.insertAdjacentElement('afterend', hint);
+    }
+  }
+  if (!resultsKeydownWired) {
+    document.addEventListener('keydown', handleResultsKeydown);
+    resultsKeydownWired = true;
+  }
+}
+let resultsKeydownWired = false;
+
+function isTypingTarget(el) {
+  if (!el) return false;
+  const tag = el.tagName;
+  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable;
+}
+
+function handleResultsKeydown(e) {
+  if (e.metaKey || e.ctrlKey || e.altKey) return; // never fight ⌘K/⌘N/⌘1-4 etc
+  if (isTypingTarget(document.activeElement)) return; // e.g. the triage-note-input field
+  if (!triageFocusList.length) return;
+
+  if (e.key === 'j') { e.preventDefault(); moveTriageFocus(1); }
+  else if (e.key === 'k') { e.preventDefault(); moveTriageFocus(-1); }
+  else if (e.key === 'b') { e.preventDefault(); applyFocusedTriage('bug'); }
+  else if (e.key === 'f') { e.preventDefault(); applyFocusedTriage('flaky-ignore'); }
+  else if (e.key === 'q') { e.preventDefault(); quarantineFocusedTest(); }
+}
+
+function moveTriageFocus(delta) {
+  const prev = document.querySelector('.triage-focused');
+  if (prev) prev.classList.remove('triage-focused');
+  triageFocusIndex = triageFocusIndex === -1
+    ? (delta > 0 ? 0 : triageFocusList.length - 1)
+    : (triageFocusIndex + delta + triageFocusList.length) % triageFocusList.length;
+  const t = triageFocusList[triageFocusIndex];
+  const row = document.getElementById(`test-row-${cssId(t.id)}`);
+  if (row) {
+    row.classList.add('triage-focused');
+    row.scrollIntoView({ block: 'nearest' });
+  }
+}
+
+function focusedTest() {
+  if (triageFocusIndex === -1 || !triageFocusList[triageFocusIndex]) return null;
+  return triageFocusList[triageFocusIndex];
+}
+
+function applyFocusedTriage(status) {
+  const t = focusedTest();
+  if (!t) { showToast('Press j/k first to focus a failed/flaky test'); return; }
+  const selectEl = document.querySelector(`.js-triage-select[data-elid="${cssId(t.id)}"]`);
+  if (selectEl) {
+    selectEl.value = status;
+    selectEl.dispatchEvent(new Event('change'));
+  } else {
+    saveTriageStatus(t.title, status, cssId(t.id));
+  }
+}
+
+function quarantineFocusedTest() {
+  const t = focusedTest();
+  if (!t) { showToast('Press j/k first to focus a failed/flaky test'); return; }
+  // Quarantine requires reason + requestedBy (§F3 governance rule) — never
+  // a silent single-keypress action. Reuses the same prompt flow the
+  // command palette (shared.js's launcherQuarantineTest) and Insights use.
+  if (typeof launcherQuarantineTest === 'function') {
+    launcherQuarantineTest(currentRun.suiteName, t.title);
+  }
+}
+
+function onShellReady() {
+  if (runId) renderDetailView(runId);
+  else renderListView();
+}
+initShell('results');
+</script>
+</body>
+</html>

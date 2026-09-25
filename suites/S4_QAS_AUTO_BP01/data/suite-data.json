@@ -1,0 +1,415 @@
+{
+  "suite": "S4_QAS_AUTO_BP01",
+  "description": "SimpleMDG S4 QAS - Business Partner Automated Test Suite",
+  "environment": "QAS",
+  "baseUrl": "https://smdg-s4-qas-simplemdg-web.cfapps.br10.hana.ondemand.com",
+
+  "templates": {
+    "AUTO_BP01": {
+      "key": "6e666348-ff4a-4088-8287-274a92ab326c",
+      "name": "AUTO_BP01",
+      "description": "Standard Template To Create a Business Partner - Use for Automation Testing Only",
+      "objectType": "Business Partner"
+    }
+  },
+
+  "sourceCRs": {
+    "default": "CR0000027064"
+  },
+
+  "comments": {
+    "requestorSubmit": "Automation: Requestor has submitted this request",
+    "approverApprove": "Automation: Approver has approved this request",
+    "approverReject": "Automation: Approver has rejected this request - please review",
+    "approverRework": "Automation: Approver has reworked this request to Requestor",
+    "stewardActivate": "Automation: Steward has activated this request"
+  },
+
+  "testData": {
+    "e2e-bp-01": {
+      "description": "Playwright_E2E BP01 -01- Create new BP via New Request form → Approve → Steward Activate",
+      "priority": "MEDIUM",
+      "reason": "New Business Partner",
+      "notes": "E2E: Create new BP with all tabs filled - Submit to Activated",
+      "_dynamic": {
+        "generalData.bpName": "generateBPName()",
+        "generalData.searchTerm": "generateSearchTerm()",
+        "address.email": "generateEmail()",
+        "address.telephone": "generatePhone()",
+        "address.mobilePhone": "generatePhone()"
+      },
+
+      "generalData": {
+        "supplierAccountGroup": { "keyword": "KRE", "value": "Vendor (int.number assgnmnt)" },
+        "customerAccountGroup": { "keyword": "DEB", "value": "DEBI" },
+        "bpName": "DYNAMIC",
+        "searchTerm": "DYNAMIC"
+      },
+
+      "address": {
+        "houseNumber": "199",
+        "streetName": "Dong Da",
+        "postalCode": "90001",
+        "city": "Los Angeles",
+        "country": { "keyword": "US", "value": "USA" },
+        "region": { "keyword": "CA", "value": "California" },
+        "companyPostalCode": "90004",
+        "telephone": "DYNAMIC",
+        "mobilePhone": "DYNAMIC",
+        "faxNumber": "7859445790",
+        "email": "DYNAMIC"
+      },
+
+      "vendorCompanyCode": {
+        "companyCode": { "keyword": "DE", "value": "SAP SE" },
+        "reconciliationAcc": "31000",
+        "paymentTerms": "0001"
+      },
+
+      "purchasingData": {
+        "purchasingOrg": "0001",
+        "purchasingGroup": "001",
+        "currency": { "keyword": "USD", "value": "United States Dollar" },
+        "paymentTerms": "0002",
+        "incoterms": "CFR",
+        "incotermsLocation": "BP1",
+        "partnerBP": "112266"
+      },
+
+      "customerCompanyCode": {
+        "companyCode": "0001",
+        "reconciliationAcc": "120000",
+        "paymentTerms": "0001"
+      },
+
+      "salesData": {
+        "salesOrg": "0001",
+        "salesDistrict": "000001",
+        "customerGroup": "01",
+        "currency": "ADP",
+        "priceGroup": "01",
+        "paymentTerms": "0001",
+        "acctAssmtGrpCust": "01"
+      },
+
+      "expectedStatuses": {
+        "afterSubmit": "SUBMITTED",
+        "afterApprove": "APPROVED",
+        "activationStatus": "ACTIVATED"
+      }
+    },
+
+    "e2e-bp-02": {
+      "description": "Playwright_E2E BP01 -02- Copy existing CR → Approve → Steward Activate (multi-context)",
+      "priority": "MEDIUM",
+      "templateName": "New Business Partner",
+      "notes": "E2E: Copy existing CR - session isolation per role",
+      "sourceCR": "CR0000027064",
+
+      "expectedStatuses": {
+        "afterSubmit": "SUBMITTED",
+        "afterApprove": "APPROVED",
+        "activationStatus": "ACTIVATED"
+      }
+    },
+
+    "smoke-bp-05": {
+      "description": "Playwright_SMOKE BP01 -smoke 05 - Copy existing CR → Approve → Steward Activate",
+      "priority": "MEDIUM",
+      "templateName": "New Business Partner",
+      "notes": "Smoke: Copy existing CR - submit to activation",
+      "sourceCR": "CR0000027064"
+    },
+
+    "smoke-bp-07": {
+      "description": "Playwright_SMOKE BP01 -smoke 07 - Create new BP via New Request form with all tabs filled",
+      "priority": "MEDIUM",
+      "reason": "New Business Partner",
+      "notes": "Create new BP with all tabs - complete form validation",
+      "_dynamic": {
+        "generalData.bpName": "generateBPName()",
+        "generalData.searchTerm": "generateSearchTerm()",
+        "address.email": "generateEmail()",
+        "address.telephone": "generatePhone()",
+        "address.mobilePhone": "generatePhone()"
+      },
+
+      "generalData": {
+        "supplierAccountGroup": { "keyword": "KRE", "value": "Vendor (int.number assgnmnt)" },
+        "customerAccountGroup": { "keyword": "DEB", "value": "DEBI" },
+        "bpName": "DYNAMIC",
+        "searchTerm": "DYNAMIC"
+      },
+
+      "address": {
+        "houseNumber": "199",
+        "streetName": "Dong Da",
+        "postalCode": "90001",
+        "city": "Los Angeles",
+        "country": { "keyword": "US", "value": "USA" },
+        "region": { "keyword": "CA", "value": "California" },
+        "companyPostalCode": "90004",
+        "telephone": "DYNAMIC",
+        "mobilePhone": "DYNAMIC",
+        "faxNumber": "7859445790",
+        "email": "DYNAMIC"
+      },
+
+      "vendorCompanyCode": {
+        "companyCode": { "keyword": "DE", "value": "SAP SE" },
+        "reconciliationAcc": "31000",
+        "paymentTerms": "0001"
+      },
+
+      "purchasingData": {
+        "purchasingOrg": "0001",
+        "purchasingGroup": "001",
+        "currency": { "keyword": "USD", "value": "United States Dollar" },
+        "paymentTerms": "0002",
+        "incoterms": "CFR",
+        "incotermsLocation": "BP1",
+        "partnerBP": "112266"
+      },
+
+      "customerCompanyCode": {
+        "companyCode": "0001",
+        "reconciliationAcc": "120000",
+        "paymentTerms": "0001"
+      },
+
+      "salesData": {
+        "salesOrg": "0001",
+        "salesDistrict": "000001",
+        "customerGroup": "01",
+        "currency": "ADP",
+        "priceGroup": "01",
+        "paymentTerms": "0001",
+        "acctAssmtGrpCust": "01"
+      }
+    },
+
+    "smoke-bp-08": {
+      "description": "Playwright_SMOKE BP01 -smoke 08 - Copy existing CR → Approve → Steward Activate (multi-context)",
+      "priority": "MEDIUM",
+      "templateName": "New Business Partner",
+      "notes": "Copy CR with multi-context - independent browser sessions",
+      "sourceCR": "CR0000027064"
+    },
+
+    "e2e-bp-03": {
+      "description": "Playwright_E2E BP01 -03- Copy existing CR → Approver Reject (multi-context)",
+      "priority": "MEDIUM",
+      "templateName": "New Business Partner",
+      "notes": "E2E: Verify rejection flow - approver rejects CR",
+      "sourceCR": "CR0000027064",
+      "expectedStatuses": {
+        "afterSubmit": "SUBMITTED",
+        "afterReject": "REJECTED"
+      }
+    },
+
+    "e2e-bp-04": {
+      "description": "Playwright_E2E BP01 -04- Copy existing CR → Approve → Steward Reject",
+      "priority": "MEDIUM",
+      "templateName": "New Business Partner",
+      "notes": "Copy CR - Approver approves - Steward rejects",
+      "sourceCR": "CR0000015973",
+      "expectedStatuses": {
+        "afterSubmit": "SUBMITTED",
+        "afterApprove": "APPROVED",
+        "afterReject": "REJECTED"
+      }
+    },
+
+    "e2e-bp-05": {
+      "description": "Playwright_E2E BP01 -05- Copy existing CR → Approve → Steward Rework → Requestor Cancel",
+      "priority": "MEDIUM",
+      "templateName": "New Business Partner",
+      "notes": "Copy CR - Approver approves - Steward rework - Requestor cancels",
+      "sourceCR": "CR0000015973",
+      "expectedStatuses": {
+        "afterSubmit": "SUBMITTED",
+        "afterApprove": "APPROVED",
+        "afterRework": "REWORK",
+        "afterCancel": "CANCELLED"
+      }
+    },
+
+    "e2e-bp-06": {
+      "description": "Playwright_E2E BP01 -06- Copy existing CR → Approve → Steward Rework → Approver Reject",
+      "priority": "MEDIUM",
+      "templateName": "New Business Partner",
+      "notes": "Copy CR - Approver approves - Steward rework to Approver - Approver rejects",
+      "sourceCR": "CR0000015973",
+      "expectedStatuses": {
+        "afterSubmit": "SUBMITTED",
+        "afterApprove": "APPROVED",
+        "afterRework": "REWORK",
+        "afterReject": "REJECTED"
+      }
+    },
+
+    "e2e-bp-07": {
+      "description": "Playwright_E2E BP01 -07- Copy CR → Approver Rework to Requestor → Resubmit → Approve → Activate",
+      "priority": "MEDIUM",
+      "templateName": "New Business Partner",
+      "notes": "Copy CR - Approver rework to Requestor - Requestor resubmit - Approve - Steward activate",
+      "sourceCR": "CR0000015973",
+      "expectedStatuses": {
+        "afterSubmit": "SUBMITTED",
+        "afterRework": "REWORK",
+        "afterResubmit": "SUBMITTED",
+        "afterApprove": "APPROVED",
+        "activationStatus": "ACTIVATED"
+      }
+    },
+
+    "e2e-bp-08": {
+      "description": "Playwright_E2E BP01 -08- Copy CR → Approver edits data + priority → Approve → Activate",
+      "priority": "MEDIUM",
+      "templateName": "New Business Partner",
+      "notes": "Copy CR - Approver edits Search Term1 - changes priority to HIGH - Steward activate",
+      "sourceCR": "CR0000015973",
+      "editData": {
+        "companyPostalCode": "90015",
+        "priority": "HIGH"
+      },
+      "expectedStatuses": {
+        "afterSubmit": "SUBMITTED",
+        "afterApprove": "APPROVED",
+        "activationStatus": "ACTIVATED"
+      }
+    },
+
+    "e2e-bp-09": {
+      "description": "Playwright_E2E BP01 -09- Copy CR → Approve → Steward changes priority → Activate",
+      "priority": "MEDIUM",
+      "templateName": "New Business Partner",
+      "notes": "Copy CR - Approver approves - Steward changes priority to CRITICAL - Activate",
+      "sourceCR": "CR0000015973",
+      "stewardChangePriority": {
+        "priority": "CRITICAL",
+        "reason": "Steward change priority"
+      },
+      "expectedStatuses": {
+        "afterSubmit": "SUBMITTED",
+        "afterApprove": "APPROVED",
+        "activationStatus": "ACTIVATED"
+      }
+    },
+
+    "e2e-bp-10": {
+      "description": "Playwright_E2E BP01 -10- Copy from onpremise master data → Approve → Activate",
+      "priority": "MEDIUM",
+      "reason": "New Business Partner",
+      "notes": "Copy from onpremise master data - select BP 3130 - switch to AUTO_BP01 template",
+      "masterDataBP": "15580",
+      "expectedStatuses": {
+        "afterSubmit": "SUBMITTED",
+        "afterApprove": "APPROVED",
+        "activationStatus": "ACTIVATED"
+      }
+    },
+
+    "e2e-bp-11": {
+      "description": "Playwright_E2E BP01 -11- Save Draft → Reopen → Submit → Approve → Activate",
+      "priority": "MEDIUM",
+      "reason": "New Business Partner",
+      "notes": "E2E: Save draft - reopen - submit - approve - activate",
+      "_dynamic": {
+        "generalData.bpName": "generateBPName()",
+        "generalData.searchTerm": "generateSearchTerm()",
+        "address.email": "generateEmail()",
+        "address.telephone": "generatePhone()",
+        "address.mobilePhone": "generatePhone()"
+      },
+
+      "generalData": {
+        "supplierAccountGroup": { "keyword": "KRE", "value": "Vendor (int.number assgnmnt)" },
+        "customerAccountGroup": { "keyword": "DEB", "value": "DEBI" },
+        "bpName": "DYNAMIC",
+        "searchTerm": "DYNAMIC"
+      },
+
+      "address": {
+        "houseNumber": "199",
+        "streetName": "Dong Da",
+        "postalCode": "90001",
+        "city": "Los Angeles",
+        "country": { "keyword": "US", "value": "USA" },
+        "region": { "keyword": "CA", "value": "California" },
+        "companyPostalCode": "90004",
+        "telephone": "DYNAMIC",
+        "mobilePhone": "DYNAMIC",
+        "faxNumber": "7859445790",
+        "email": "DYNAMIC"
+      },
+
+      "vendorCompanyCode": {
+        "companyCode": { "keyword": "DE", "value": "SAP SE" },
+        "reconciliationAcc": "31000",
+        "paymentTerms": "0001"
+      },
+
+      "purchasingData": {
+        "purchasingOrg": "0001",
+        "purchasingGroup": "001",
+        "currency": { "keyword": "USD", "value": "United States Dollar" },
+        "paymentTerms": "0002",
+        "incoterms": "CFR",
+        "incotermsLocation": "BP1",
+        "partnerBP": "112266"
+      },
+
+      "customerCompanyCode": {
+        "companyCode": "0001",
+        "reconciliationAcc": "120000",
+        "paymentTerms": "0001"
+      },
+
+      "salesData": {
+        "salesOrg": "0001",
+        "salesDistrict": "000001",
+        "customerGroup": "01",
+        "currency": "ADP",
+        "priceGroup": "01",
+        "paymentTerms": "0001",
+        "acctAssmtGrpCust": "01"
+      },
+
+      "expectedStatuses": {
+        "afterSubmit": "SUBMITTED",
+        "afterApprove": "APPROVED",
+        "activationStatus": "ACTIVATED"
+      }
+    },
+
+    "e2e-bp-12": {
+      "description": "Playwright_E2E BP01 -12- Admin config auto-approve + auto-activate → Submit → Verify ACTIVATED",
+      "priority": "MEDIUM",
+      "reason": "New Business Partner",
+      "templateName": "New Business Partner",
+      "notes": "E2E: Admin enables system approve + system activate - fully automated flow",
+      "sourceCR": "CR0000027064",
+      "expectedStatuses": {
+        "afterSubmit": "ACTIVATED",
+        "activationStatus": "ACTIVATED"
+      }
+    },
+
+    "e2e-bp-13": {
+      "description": "Playwright_E2E BP01 -13- Multi-level approver (2 levels): Approver1 → Approver2 → Steward Activate",
+      "priority": "MEDIUM",
+      "reason": "New Business Partner",
+      "templateName": "New Business Partner",
+      "notes": "E2E: Admin configures 2 approvers - both must approve before steward activation",
+      "sourceCR": "CR0000027064",
+      "expectedStatuses": {
+        "afterSubmit": "SUBMITTED",
+        "afterApprover1": "SUBMITTED",
+        "afterApprover2": "APPROVED",
+        "activationStatus": "ACTIVATED"
+      }
+    }
+  }
+}

@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Settings — SimpleMDG Automation Hub</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/shared.css">
+<style>
+.settings-wrap { max-width: 720px; }
+.field { display: flex; flex-direction: column; gap: 5px; }
+.field label { font-size: 12px; font-weight: 600; color: var(--text-2); }
+.field .hint { font-size: 11px; color: var(--text-4); }
+.field input[type="text"], .field input[type="password"], .field input[type="number"] {
+  padding: 8px 10px; border: 1px solid var(--border-md); border-radius: var(--r);
+  background: var(--surface); color: var(--text); font-size: 12px; font-family: var(--mono);
+}
+.toggle-row { display: flex; align-items: center; justify-content: space-between; }
+.switch { position: relative; width: 38px; height: 22px; flex-shrink: 0; }
+.switch input { opacity: 0; width: 0; height: 0; }
+.switch-track { position: absolute; inset: 0; background: var(--border-md); border-radius: 11px; cursor: pointer; transition: background .15s; }
+.switch-track::before { content: ''; position: absolute; width: 16px; height: 16px; left: 3px; top: 3px; background: #fff; border-radius: 50%; transition: transform .15s; }
+.switch input:checked + .switch-track { background: var(--blue); }
+.switch input:checked + .switch-track::before { transform: translateX(16px); }
+.status-line { font-size: 11px; padding: 8px 10px; border-radius: var(--r); border: 1px solid var(--border); background: var(--surface-2); color: var(--text-3); }
+.status-line.ok { border-color: var(--green-bdr); background: var(--green-bg); color: var(--green); }
+.status-line.err { border-color: var(--red-bdr); background: var(--red-bg); color: var(--red); }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.key-badge { font-size: 10px; font-family: var(--mono); padding: 2px 8px; border-radius: 10px; }
+.key-badge.set { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-bdr); }
+.key-badge.unset { background: var(--orange-bg); color: var(--orange); border: 1px solid var(--orange-bdr); }
+</style>
+</head>
+<body>
+<div id="shell-slot"></div>
+
+<div class="main">
+  <div class="topbar">
+    <div>
+      <div class="topbar-title">Settings</div>
+      <div class="topbar-sub">Target environment, AI diagnosis, notifications, data retention</div>
+    </div>
+  </div>
+
+  <div class="page-body">
+  <div class="settings-wrap" style="display:flex;flex-direction:column;gap:16px">
+
+    <div class="panel">
+      <div class="panel-head">
+        <span class="panel-title">Setup Wizard</span>
+        <div class="panel-sub">First-time setup checklist — Playwright, suite discovery, Hub Reporter opt-in, tagging, target environment, and optional AI.</div>
+      </div>
+      <div class="panel-body">
+        <a class="btn-primary" href="/setup.html" style="text-decoration:none;display:inline-flex">Open Setup Wizard →</a>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <span class="panel-title">Target Environment</span>
+        <div class="panel-sub">The base URL of the QA environment under test — shown in the sidebar with a quick reachability check.</div>
+      </div>
+      <div class="panel-body">
+        <div class="field">
+          <label>Target URL</label>
+          <input type="text" id="targetUrl" placeholder="https://sit.simplemdg.example.com">
+          <span class="hint">A single HTTP HEAD request, not a persistent uptime monitor.</span>
+        </div>
+        <div class="row">
+          <button class="btn-primary" onclick="saveTargetUrl()">Save</button>
+          <button class="btn-secondary" onclick="pingNow()">Ping now</button>
+        </div>
+        <div id="targetStatus"></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <span class="panel-title">AI Diagnosis (Groq)</span>
+        <div class="panel-sub">Optional. Everything else in this app works without it — the rule-based classifier is always used as a fallback.</div>
+      </div>
+      <div class="panel-body">
+        <div class="toggle-row">
+          <div class="field" style="gap:2px">
+            <label>Enable AI diagnosis</label>
+            <span class="hint">Adds an "AI Diagnose" button on failed tests in Results.</span>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="aiEnabled">
+            <span class="switch-track"></span>
+          </label>
+        </div>
+        <div class="field">
+          <label>Groq API key <span id="keyBadge" class="key-badge unset">not set</span></label>
+          <input type="password" id="groqApiKey" placeholder="Leave blank to keep the current key">
+          <span class="hint">Stored locally in dashboard/data/settings.json on this machine only — never sent anywhere except api.groq.com when diagnosing a failure.</span>
+        </div>
+        <div class="field">
+          <label>Model</label>
+          <input type="text" id="aiModel" placeholder="openai/gpt-oss-120b">
+        </div>
+        <div class="row">
+          <button class="btn-primary" onclick="saveAiSettings()">Save AI settings</button>
+          <button class="btn-secondary" onclick="testConnection()">Test connection</button>
+          <button class="btn-secondary" onclick="clearApiKey()">Clear key</button>
+        </div>
+        <div id="aiStatus"></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <span class="panel-title">Capybara (SAP MDG)</span>
+        <div class="panel-sub">Floating chat widget (bottom-right, every page). Looks up a CR's Submit/Approve/Activate/RequestAction event log, answers questions about this dashboard's own Playwright test results (QA overview, latest run, top failing/flaky tests, suite health), and handles greetings/small talk — all with a Groq-analyzed summary. Requires AI Diagnosis above to be enabled too — it reuses that same Groq key.</div>
+      </div>
+      <div class="panel-body">
+        <div class="toggle-row">
+          <div class="field" style="gap:2px">
+            <label>Enable Capybara</label>
+            <span class="hint">Shows the widget on every page once a cookie and base URL are set below.</span>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="eventlogBotEnabled">
+            <span class="switch-track"></span>
+          </label>
+        </div>
+        <div class="field">
+          <label>SAP BTP base URL</label>
+          <input type="text" id="sapBaseUrl" placeholder="https://smdg-s4-qas-simplemdg-web.cfapps.br10.hana.ondemand.com">
+        </div>
+        <div class="field">
+          <label>OData service path</label>
+          <input type="text" id="sapServicePath" placeholder="/srv-process/CommonProcessService">
+        </div>
+        <div class="field">
+          <label>SAP session cookie <span id="sapCookieBadge" class="key-badge unset">not set</span></label>
+          <input type="password" id="sapCookie" placeholder="Leave blank to keep the current cookie">
+          <span class="hint">Open the SAP BTP app → F12 → Network tab → any request → Headers → copy the full "Cookie" value. Expires after a few hours; re-paste here when queries start failing with "session expired". Stored the same way as the Groq key above — locally on this machine only.</span>
+        </div>
+        <div class="row">
+          <button class="btn-primary" onclick="saveEventlogBotSettings()">Save Capybara settings</button>
+          <button class="btn-secondary" onclick="testSapConnection()">Test connection</button>
+          <button class="btn-secondary" onclick="clearSapCookie()">Clear cookie</button>
+        </div>
+        <div id="eventlogBotStatus"></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <span class="panel-title">Notifications</span>
+        <div class="panel-sub">Slack sends a plain {"text": "..."} JSON payload. Teams sends a simple Adaptive Card via a Power Automate Workflow.</div>
+      </div>
+      <div class="panel-body">
+        <div class="field">
+          <label>Notifier type</label>
+          <select id="notifierType">
+            <option value="slack">Slack</option>
+            <option value="teams">Microsoft Teams</option>
+            <option value="none">None (disabled)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Webhook URL</label>
+          <input type="text" id="notificationWebhook" placeholder="https://hooks.slack.com/services/... or Power Automate Workflow URL">
+        </div>
+        <div class="row">
+          <button class="btn-primary" onclick="saveWebhook()">Save webhook</button>
+          <button class="btn-secondary" onclick="testWebhook()">Send test message</button>
+        </div>
+        <div id="webhookStatus"></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <span class="panel-title">Data retention</span>
+        <div class="panel-sub">Runs older than this are deleted automatically each time the server starts.</div>
+      </div>
+      <div class="panel-body">
+        <div class="field">
+          <label>Retention period (days)</label>
+          <input type="number" id="retentionDays" min="1" style="max-width:120px">
+        </div>
+        <div class="row">
+          <button class="btn-primary" onclick="saveRetention()">Save</button>
+          <button class="btn-secondary" onclick="runCleanupNow()">Clean up now</button>
+        </div>
+        <div id="retentionStatus"></div>
+        <div id="maintenanceStats" class="hint"></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <span class="panel-title">Quarantined tests</span>
+        <div class="panel-sub">Manage on the <a href="/insights.html" style="color:var(--blue)">Insights</a> page (Flaky tests panel).</div>
+      </div>
+      <div class="panel-body">
+        <div id="quarantineCount" class="hint">Loading…</div>
+      </div>
+    </div>
+
+  </div>
+  </div>
+</div>
+
+<script src="/shared.js"></script>
+<script>
+function setStatus(elId, msg, kind) {
+  const el = $(elId);
+  el.className = 'status-line' + (kind ? ' ' + kind : '');
+  el.textContent = msg;
+}
+
+async function loadSettings() {
+  try {
+    const data = await fetch('/api/settings').then(r => r.json());
+    if (!data.ok) return;
+    const s = data.settings;
+    $('aiEnabled').checked = !!s.aiEnabled;
+    $('aiModel').value = s.aiModel || '';
+    $('retentionDays').value = s.retentionDays || 30;
+    $('notificationWebhook').value = s.notificationWebhook || '';
+    $('notifierType').value = s.notifierType || 'slack';
+    $('targetUrl').value = s.targetUrl || '';
+    const badge = $('keyBadge');
+    badge.textContent = s.aiKeySet ? 'key set' : 'not set';
+    badge.className = 'key-badge ' + (s.aiKeySet ? 'set' : 'unset');
+    $('quarantineCount').textContent = `${s.quarantinedCount} test(s) currently quarantined.`;
+    $('eventlogBotEnabled').checked = !!s.eventlogBotEnabled;
+    $('sapBaseUrl').value = s.sapBaseUrl || '';
+    $('sapServicePath').value = s.sapServicePath || '/srv-process/CommonProcessService';
+    const sapBadge = $('sapCookieBadge');
+    sapBadge.textContent = s.sapCookieSet ? 'cookie set' : 'not set';
+    sapBadge.className = 'key-badge ' + (s.sapCookieSet ? 'set' : 'unset');
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+async function saveTargetUrl() {
+  try {
+    const data = await fetch('/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ targetUrl: $('targetUrl').value }) }).then(r => r.json());
+    if (!data.ok) throw new Error(data.error);
+    setStatus('targetStatus', 'Saved.', 'ok');
+    shellLoadEnvironment();
+  } catch (err) {
+    setStatus('targetStatus', '⚠ ' + err.message, 'err');
+  }
+}
+async function pingNow() {
+  setStatus('targetStatus', 'Pinging…');
+  try {
+    const data = await fetch('/api/environment/ping').then(r => r.json());
+    if (!data.targetUrl) throw new Error('Save a target URL first');
+    if (data.ok) setStatus('targetStatus', `Reachable — HTTP ${data.statusCode}, ${data.responseTimeMs}ms`, 'ok');
+    else setStatus('targetStatus', `Unreachable: ${data.error || 'unknown error'}`, 'err');
+    shellLoadEnvironment();
+  } catch (err) {
+    setStatus('targetStatus', '⚠ ' + err.message, 'err');
+  }
+}
+
+async function saveAiSettings() {
+  try {
+    const body = { aiEnabled: $('aiEnabled').checked, aiModel: $('aiModel').value };
+    const keyVal = $('groqApiKey').value;
+    if (keyVal) body.groqApiKey = keyVal;
+    const data = await fetch('/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(r => r.json());
+    if (!data.ok) throw new Error(data.error);
+    $('groqApiKey').value = '';
+    setStatus('aiStatus', 'Saved.', 'ok');
+    loadSettings();
+  } catch (err) {
+    setStatus('aiStatus', '⚠ ' + err.message, 'err');
+  }
+}
+
+async function clearApiKey() {
+  try {
+    const data = await fetch('/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ clearApiKey: true }) }).then(r => r.json());
+    if (!data.ok) throw new Error(data.error);
+    setStatus('aiStatus', 'API key cleared.', 'ok');
+    loadSettings();
+  } catch (err) {
+    setStatus('aiStatus', '⚠ ' + err.message, 'err');
+  }
+}
+
+async function testConnection() {
+  setStatus('aiStatus', 'Testing connection…');
+  try {
+    const data = await fetch('/api/ai/test-connection', { method: 'POST' }).then(r => r.json());
+    if (!data.ok) throw new Error(data.error);
+    setStatus('aiStatus', `Connection OK (model: ${data.model}).`, 'ok');
+  } catch (err) {
+    setStatus('aiStatus', '⚠ ' + err.message, 'err');
+  }
+}
+
+async function saveEventlogBotSettings() {
+  try {
+    const body = {
+      eventlogBotEnabled: $('eventlogBotEnabled').checked,
+      sapBaseUrl: $('sapBaseUrl').value,
+      sapServicePath: $('sapServicePath').value,
+    };
+    const cookieVal = $('sapCookie').value;
+    if (cookieVal) body.sapCookie = cookieVal;
+    const data = await fetch('/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(r => r.json());
+    if (!data.ok) throw new Error(data.error);
+    $('sapCookie').value = '';
+    setStatus('eventlogBotStatus', 'Saved.', 'ok');
+    loadSettings();
+  } catch (err) {
+    setStatus('eventlogBotStatus', '⚠ ' + err.message, 'err');
+  }
+}
+
+async function clearSapCookie() {
+  try {
+    const data = await fetch('/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ clearSapCookie: true }) }).then(r => r.json());
+    if (!data.ok) throw new Error(data.error);
+    setStatus('eventlogBotStatus', 'Cookie cleared.', 'ok');
+    loadSettings();
+  } catch (err) {
+    setStatus('eventlogBotStatus', '⚠ ' + err.message, 'err');
+  }
+}
+
+async function testSapConnection() {
+  setStatus('eventlogBotStatus', 'Testing connection…');
+  try {
+    const data = await fetch('/api/eventlog-bot/test-connection', { method: 'POST' }).then(r => r.json());
+    if (!data.ok) throw new Error(data.error);
+    setStatus('eventlogBotStatus', 'Connection OK — cookie is valid.', 'ok');
+  } catch (err) {
+    setStatus('eventlogBotStatus', '⚠ ' + err.message, 'err');
+  }
+}
+
+async function saveWebhook() {
+  try {
+    const data = await fetch('/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ notificationWebhook: $('notificationWebhook').value, notifierType: $('notifierType').value }) }).then(r => r.json());
+    if (!data.ok) throw new Error(data.error);
+    setStatus('webhookStatus', 'Saved.', 'ok');
+  } catch (err) {
+    setStatus('webhookStatus', '⚠ ' + err.message, 'err');
+  }
+}
+
+async function testWebhook() {
+  setStatus('webhookStatus', 'Sending…');
+  try {
+    const url = $('notificationWebhook').value;
+    if (!url) throw new Error('Enter a webhook URL first');
+    const data = await fetch('/api/notifications/test', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ webhookUrl: url }) }).then(r => r.json());
+    if (!data.ok) throw new Error(data.error);
+    setStatus('webhookStatus', 'Test message sent.', 'ok');
+  } catch (err) {
+    setStatus('webhookStatus', '⚠ ' + err.message, 'err');
+  }
+}
+
+async function saveRetention() {
+  try {
+    const data = await fetch('/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ retentionDays: Number($('retentionDays').value) }) }).then(r => r.json());
+    if (!data.ok) throw new Error(data.error);
+    setStatus('retentionStatus', 'Saved. Applies automatically at server start and every 24h while it runs.', 'ok');
+  } catch (err) {
+    setStatus('retentionStatus', '⚠ ' + err.message, 'err');
+  }
+}
+
+async function runCleanupNow() {
+  setStatus('retentionStatus', 'Cleaning up…');
+  try {
+    const data = await fetch('/api/maintenance/cleanup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ olderThanDays: Number($('retentionDays').value) }) }).then(r => r.json());
+    if (!data.ok) throw new Error(data.error);
+    setStatus('retentionStatus', `Deleted ${data.deletedCount} run(s), freed ${(data.freedBytes / 1024 / 1024).toFixed(1)} MB.`, 'ok');
+    loadStats();
+  } catch (err) {
+    setStatus('retentionStatus', '⚠ ' + err.message, 'err');
+  }
+}
+
+async function loadStats() {
+  try {
+    const data = await fetch('/api/maintenance/stats').then(r => r.json());
+    if (!data.ok) return;
+    const totalMB = ((data.dataSizeBytes + data.reportsSizeBytes) / 1024 / 1024).toFixed(1);
+    $('maintenanceStats').textContent = `${data.runCount} run(s) stored, using ${totalMB} MB on disk.`;
+  } catch (_) {}
+}
+
+function onShellReady() {
+  loadSettings();
+  loadStats();
+}
+initShell('settings');
+</script>
+</body>
+</html>

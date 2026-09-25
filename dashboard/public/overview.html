@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Overview — SimpleMDG Automation Hub</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/shared.css">
+<style>
+.hero { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-5); flex-wrap: wrap; }
+.hero h1 { font-size: var(--text-2xl); font-weight: 700; letter-spacing: -.4px; }
+.hero p { font-size: var(--text-sm); color: var(--text-3); margin-top: 3px; }
+
+.two-col { display: grid; grid-template-columns: 1fr 320px; gap: var(--space-4); align-items: start; }
+@media (max-width: 980px) { .two-col { grid-template-columns: 1fr; } }
+
+.exec-row { display: flex; align-items: center; gap: var(--space-3); padding: 11px 4px; border-bottom: 1px solid var(--border); }
+.exec-row:last-child { border-bottom: none; }
+.exec-status-icon { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.exec-status-icon.done { background: var(--green-bg); color: var(--green); }
+.exec-status-icon.failed { background: var(--red-bg); color: var(--red); }
+.exec-status-icon.running { background: var(--orange-bg); color: var(--orange); }
+.exec-info { flex: 1; min-width: 0; }
+.exec-title { font-size: var(--text-sm); font-weight: 600; color: var(--text); }
+.exec-sub { font-size: var(--text-xs); color: var(--text-4); margin-top: 1px; }
+.exec-time { font-size: var(--text-2xs); color: var(--text-4); white-space: nowrap; }
+
+.fh-title { color: var(--red); font-size: var(--text-md); font-weight: 700; }
+.fh-sub { font-size: var(--text-xs); color: var(--text-4); margin: 3px 0 14px; }
+.fh-trend { height: 90px; }
+.fh-top-label { font-size: var(--text-2xs); font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--text-4); margin: 14px 0 4px; }
+.fh-top-test { display: flex; justify-content: space-between; align-items: center; font-size: var(--text-sm); }
+.fh-top-test .name { font-family: var(--mono); color: var(--text); }
+.fh-top-test .count { color: var(--red); font-weight: 600; font-size: var(--text-xs); }
+
+.quick-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: var(--space-3); }
+.quick-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow);
+  padding: var(--space-4); cursor: pointer; transition: all .14s var(--ease); display: flex; flex-direction: column; gap: var(--space-2);
+}
+.quick-card:hover { border-color: var(--blue-border); box-shadow: var(--shadow-md); transform: translateY(-1px); }
+.quick-icon { width: 34px; height: 34px; border-radius: 9px; display: flex; align-items: center; justify-content: center; }
+.quick-title { font-size: var(--text-base); font-weight: 700; }
+.quick-sub { font-size: var(--text-xs); color: var(--text-4); }
+
+.side-panel { display: flex; flex-direction: column; gap: var(--space-4); }
+.active-run-ring { display: flex; justify-content: center; padding: 10px 0 4px; }
+.active-run-stats { display: flex; justify-content: space-around; padding: 6px 0 4px; font-size: var(--text-xs); }
+.active-run-stats .val { font-size: 15px; font-weight: 700; font-family: var(--mono); }
+.active-run-stats .val.pass { color: var(--green); }
+.active-run-stats .val.fail { color: var(--red); }
+
+.ai-suggest-icon { width: 30px; height: 30px; border-radius: 8px; background: var(--blue-bg); color: var(--blue); display: flex; align-items: center; justify-content: center; }
+
+.quarantine-alert {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap;
+  background: var(--orange-bg); border: 1px solid var(--orange-bdr, var(--border)); border-radius: var(--r-lg);
+  padding: 12px var(--space-4); margin-bottom: 4px; font-size: var(--text-sm); color: var(--orange); font-weight: 600;
+}
+.quarantine-alert .qa-detail { color: var(--text-3); font-weight: 400; font-size: var(--text-xs); }
+.quarantine-alert a { color: var(--blue); text-decoration: none; font-weight: 600; }
+.quarantine-alert a:hover { text-decoration: underline; }
+
+.setup-banner {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap;
+  background: var(--blue-bg); border: 1px solid var(--blue-border, var(--border)); border-radius: var(--r-lg);
+  padding: 12px var(--space-4); margin-bottom: 4px; font-size: var(--text-sm); color: var(--blue); font-weight: 600;
+}
+.setup-banner a { color: var(--blue); text-decoration: underline; font-weight: 600; }
+.setup-banner .sb-dismiss { background: none; border: none; color: var(--text-4); font-size: var(--text-lg); cursor: pointer; line-height: 1; padding: 0 2px; }
+
+.adoption-bar-track { width: 100%; height: 6px; background: var(--surface-3); border-radius: 3px; overflow: hidden; margin-top: 8px; }
+.adoption-bar-fill { height: 100%; border-radius: 3px; background: var(--blue); }
+</style>
+</head>
+<body>
+<div id="shell-slot"></div>
+
+<div class="main">
+  <div class="topbar">
+    <div>
+      <div class="topbar-title" id="greeting">Good day! 👋</div>
+      <div class="topbar-sub">Here's what's happening with your test automation.</div>
+    </div>
+    <div class="topbar-search" onclick="openLauncher()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      Search tests, suites, runs…
+      <kbd>⌘K</kbd>
+    </div>
+    <button class="btn-primary" onclick="openLauncher()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      New Run
+    </button>
+  </div>
+
+  <div class="page-body">
+
+    <div id="setupBannerSlot"></div>
+
+    <div id="quarantineAlertSlot"></div>
+
+    <div class="stat-grid" id="statGrid">
+      <div class="skeleton-stat"><div class="skeleton skeleton-line w-40"></div><div class="skeleton skeleton-line w-60"></div><div class="skeleton skeleton-line w-40"></div></div>
+      <div class="skeleton-stat"><div class="skeleton skeleton-line w-40"></div><div class="skeleton skeleton-line w-60"></div><div class="skeleton skeleton-line w-40"></div></div>
+      <div class="skeleton-stat"><div class="skeleton skeleton-line w-40"></div><div class="skeleton skeleton-line w-60"></div><div class="skeleton skeleton-line w-40"></div></div>
+      <div class="skeleton-stat"><div class="skeleton skeleton-line w-40"></div><div class="skeleton skeleton-line w-60"></div><div class="skeleton skeleton-line w-40"></div></div>
+      <div class="skeleton-stat"><div class="skeleton skeleton-line w-40"></div><div class="skeleton skeleton-line w-60"></div><div class="skeleton skeleton-line w-40"></div></div>
+    </div>
+
+    <div class="two-col">
+      <div style="display:flex;flex-direction:column;gap:18px">
+        <div class="panel">
+          <div class="panel-head">
+            <span class="panel-title">Recent Executions</span>
+            <a class="btn-secondary" href="/execution-center.html">View all →</a>
+          </div>
+          <div class="panel-body" id="recentExecBody" style="padding:6px 14px">
+            <div class="skeleton-row"><div class="skeleton skeleton-line c1"></div><div class="skeleton skeleton-line c2"></div><div class="skeleton skeleton-line c6"></div></div>
+            <div class="skeleton-row"><div class="skeleton skeleton-line c1"></div><div class="skeleton skeleton-line c2"></div><div class="skeleton skeleton-line c6"></div></div>
+            <div class="skeleton-row"><div class="skeleton skeleton-line c1"></div><div class="skeleton skeleton-line c2"></div><div class="skeleton skeleton-line c6"></div></div>
+          </div>
+        </div>
+
+        <div>
+          <div class="fh-top-label" style="margin-bottom:8px">Quick Actions</div>
+          <div class="quick-grid">
+            <div class="quick-card" onclick="location.href='/explorer.html'">
+              <div class="quick-icon" style="background:var(--blue-bg);color:var(--blue)">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              </div>
+              <div class="quick-title">Run Tests</div>
+              <div class="quick-sub">Browse suites &amp; specs</div>
+            </div>
+            <div class="quick-card" onclick="shellViewLastReport()">
+              <div class="quick-icon" style="background:var(--green-bg);color:var(--green)">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              </div>
+              <div class="quick-title">View Last Report</div>
+              <div class="quick-sub">Open latest HTML report</div>
+            </div>
+            <div class="quick-card" onclick="location.href='/ai-workspace.html'">
+              <div class="quick-icon" style="background:var(--orange-bg);color:var(--orange)">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4z"/></svg>
+              </div>
+              <div class="quick-title">AI Workspace</div>
+              <div class="quick-sub">Diagnose recent failures</div>
+            </div>
+            <div class="quick-card" onclick="location.href='/execution-center.html'">
+              <div class="quick-icon" style="background:var(--gray-bg);color:var(--gray)">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+              </div>
+              <div class="quick-title">Execution Center</div>
+              <div class="quick-sub">Active runs &amp; cycles</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="side-panel">
+        <div class="panel">
+          <div class="panel-head"><span class="panel-title">Failure Highlight</span></div>
+          <div class="panel-body" id="failureHighlight"><div class="spinner"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="fh-top-label" style="margin-bottom:8px">AI Insights <span style="text-transform:none;font-weight:400;letter-spacing:0;color:var(--text-4)">generated from your test data</span></div>
+      <div class="quick-grid" id="aiInsightsGrid">
+        <div class="quick-card"><div class="spinner"></div></div>
+        <div class="quick-card"><div class="spinner"></div></div>
+        <div class="quick-card"><div class="spinner"></div></div>
+        <div class="quick-card"><div class="spinner"></div></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script src="/shared.js"></script>
+<script src="/count-up.js"></script>
+<script>
+function greet() {
+  const h = new Date().getHours();
+  const g = h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
+  $('greeting').textContent = `${g}! 👋`;
+}
+
+function fmtDuration(ms) {
+  if (!ms || ms < 0) return '—';
+  const s = Math.round(ms / 1000);
+  return s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${s % 60}s`;
+}
+function fmtRelative(ms) {
+  if (!ms) return '—';
+  const diff = Date.now() - ms;
+  const min = Math.round(diff / 60000);
+  if (min < 1) return 'just now';
+  if (min < 60) return `${min}m ago`;
+  const hr = Math.round(min / 60);
+  if (hr < 24) return `${hr}h ago`;
+  return `${Math.round(hr / 24)}d ago`;
+}
+function sparklineSvg(values, color) {
+  if (!values.length) return '';
+  const W = 100, H = 28;
+  const max = Math.max(...values, 1);
+  const min = Math.min(...values, 0);
+  const range = Math.max(max - min, 1);
+  const step = values.length > 1 ? W / (values.length - 1) : 0;
+  const pts = values.map((v, i) => `${(i * step).toFixed(1)},${(H - ((v - min) / range) * H).toFixed(1)}`).join(' ');
+  return `<svg class="stat-sparkline" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" width="100%" height="28">
+    <polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2" vector-effect="non-scaling-stroke"/>
+  </svg>`;
+}
+
+async function loadStats() {
+  try {
+    const data = await fetch('/api/overview/stats').then(r => r.json());
+    if (!data.ok) throw new Error(data.error);
+    const { today, yesterday, sparkline } = data;
+
+    const delta = (t, y) => {
+      if (!y) return null;
+      return Math.round(((t - y) / y) * 100);
+    };
+    const deltaHtml = (t, y, positiveIsGood) => {
+      const d = delta(t, y);
+      if (d === null) return '';
+      const good = positiveIsGood ? d >= 0 : d <= 0;
+      const arrow = d >= 0 ? '↑' : '↓';
+      return `<span class="stat-delta ${good ? 'up' : 'down'}">${arrow} ${Math.abs(d)}% vs yesterday</span>`;
+    };
+
+    // v1.8.0 — each stat card gets a small colored icon badge (§ item 4:
+    // "icons as accent, colored by what the stat represents") instead of
+    // being label+number only: pass rate = green check, failures = red x,
+    // skipped = orange slash, duration = neutral clock, total = blue grid.
+    const ICONS = {
+      total:       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>',
+      passed:      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8"><polyline points="4 12 9 17 20 6"/></svg>',
+      failed:      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>',
+      skipped:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="12" cy="12" r="9"/><line x1="6" y1="18" x2="18" y2="6"/></svg>',
+      avgDuration: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>',
+    };
+    const cards = [
+      { label: 'Total Tests', value: today.total, key: 'total', color: 'var(--blue)', delta: deltaHtml(today.total, yesterday.total, true) },
+      { label: 'Passed', value: today.passed, key: 'passed', color: 'var(--green)', delta: deltaHtml(today.passed, yesterday.passed, true) },
+      { label: 'Failed', value: today.failed, key: 'failed', color: 'var(--red)', delta: deltaHtml(today.failed, yesterday.failed, false) },
+      { label: 'Skipped', value: today.skipped, key: 'skipped', color: 'var(--orange)', delta: deltaHtml(today.skipped, yesterday.skipped, false) },
+      { label: 'Avg Duration', value: fmtDuration(today.avgDuration), key: 'avgDuration', color: 'var(--text-3)', delta: '', raw: true },
+    ];
+
+    $('statGrid').innerHTML = cards.map((c, i) => `
+      <div class="stat-card">
+        <div class="stat-icon-row">
+          <div class="stat-icon" style="--stat-color:${c.color}">${ICONS[c.key] || ''}</div>
+          <div class="stat-label">${c.label}</div>
+        </div>
+        <div class="stat-value" ${c.raw ? '' : `data-count-target="${Number(c.value) || 0}"`} id="statVal-${c.key}">${c.raw ? c.value : '0'}</div>
+        ${c.delta || '<span class="stat-delta" style="color:var(--text-4)">No data yesterday</span>'}
+        ${sparklineSvg(sparkline.map(p => c.raw ? p.avgDuration : p[c.key]), c.color)}
+      </div>`).join('');
+    animateStatCountUps();
+  } catch (err) {
+    $('statGrid').innerHTML = `<div class="empty">⚠ ${err.message}</div>`;
+  }
+}
+
+// v1.8.0 part 2, item 4 — count-up animation for stat-card numbers, driven
+// by count-up.js's pure countUpValue()/easeOutCubic() helpers (unit-tested
+// in __tests__/count-up.test.js). Respects prefers-reduced-motion: skip
+// straight to the final value for users who've asked for less motion.
+function animateStatCountUps() {
+  const targets = Array.from(document.querySelectorAll('[data-count-target]'));
+  if (!targets.length) return;
+  const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const DURATION_MS = 650;
+  targets.forEach(el => {
+    const to = Number(el.dataset.countTarget) || 0;
+    if (reduceMotion) { el.textContent = String(to); return; }
+    const start = performance.now();
+    function tick(now) {
+      const elapsed = now - start;
+      el.textContent = String(countUpValue(0, to, elapsed, DURATION_MS));
+      if (elapsed < DURATION_MS) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  });
+}
+
+// v1.7.0 — Tag Adoption % stat card: a visible, trackable incentive loop for
+// @bp:/@TC- tag adoption, computed from the v1.6.0 AST scanner's per-test
+// data (same field GET /api/coverage's `tagAdoption` already exposes).
+// Rendered as its own async load so a slow/failing coverage fetch never
+// blocks the rest of the (already-loaded) stat cards.
+async function loadTagAdoptionCard() {
+  const grid = $('statGrid');
+  const card = document.createElement('div');
+  card.className = 'stat-card';
+  card.innerHTML = '<div class="stat-label">Tag Adoption</div><div class="spinner"></div>';
+  grid.appendChild(card);
+  try {
+    const data = await fetch('/api/coverage').then(r => r.json());
+    if (!data.ok) throw new Error(data.error);
+    const { percent, totalSpecs, taggedSpecs } = data.tagAdoption || {};
+    if (percent === null || percent === undefined) {
+      card.innerHTML = `<div class="stat-label">Tag Adoption</div><div class="stat-value">—</div><span class="stat-delta" style="color:var(--text-4)">No specs discovered yet</span>`;
+      return;
+    }
+    card.innerHTML = `
+      <div class="stat-label">Tag Adoption</div>
+      <div class="stat-value">${percent}%</div>
+      <span class="stat-delta" style="color:var(--text-4)">${taggedSpecs} / ${totalSpecs} spec(s) tagged</span>
+      <div class="adoption-bar-track"><div class="adoption-bar-fill" style="width:${percent}%"></div></div>`;
+  } catch (err) {
+    card.innerHTML = `<div class="stat-label">Tag Adoption</div><div class="empty">⚠ ${err.message}</div>`;
+  }
+}
+
+// ─────────────────────────────────────────
+// Setup Wizard banner (v1.7.0) — non-blocking, dismissible. Shown only when
+// the setup checklist looks incomplete; dismissal persists in localStorage
+// (following the same shared-localStorage-key pattern as mdg-theme/mdg-density
+// in shared.js) so it never nags again once closed, even across reloads.
+// ─────────────────────────────────────────
+const SETUP_BANNER_DISMISSED_KEY = 'mdg-setup-banner-dismissed';
+
+function dismissSetupBanner() {
+  localStorage.setItem(SETUP_BANNER_DISMISSED_KEY, '1');
+  $('setupBannerSlot').innerHTML = '';
+}
+
+async function loadSetupBanner() {
+  if (localStorage.getItem(SETUP_BANNER_DISMISSED_KEY) === '1') return;
+  try {
+    const data = await fetch('/api/setup/status').then(r => r.json());
+    if (!data.ok) return;
+    const { requiredCompletedCount, requiredTotalCount } = data;
+    if (requiredCompletedCount >= requiredTotalCount) return; // fully set up — nothing to nag about
+    $('setupBannerSlot').innerHTML = `
+      <div class="setup-banner">
+        <div>${requiredCompletedCount}/${requiredTotalCount} setup steps complete — <a href="/setup.html">finish setup</a></div>
+        <button class="sb-dismiss" onclick="dismissSetupBanner()" title="Dismiss">✕</button>
+      </div>`;
+  } catch (_) { /* non-critical, fail silently */ }
+}
+
+function statusIcon(status) {
+  if (status === 'running') return { cls: 'running', svg: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/></svg>' };
+  if (status === 'done' || status === 'passed') return { cls: 'done', svg: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>' };
+  return { cls: 'failed', svg: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' };
+}
+
+async function loadRecentExecutions() {
+  try {
+    const data = await fetch('/api/runs/history?limit=6').then(r => r.json());
+    if (!data.ok) throw new Error(data.error);
+    if (!data.runs.length) {
+      $('recentExecBody').innerHTML = `
+        <div class="empty-illustration">
+          <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="18" y="26" width="64" height="52" rx="6" stroke="var(--border-md)" stroke-width="2.5"/>
+            <line x1="18" y1="40" x2="82" y2="40" stroke="var(--border-md)" stroke-width="2.5"/>
+            <circle cx="27" cy="33" r="1.6" fill="var(--text-4)"/>
+            <circle cx="34" cy="33" r="1.6" fill="var(--text-4)"/>
+            <polygon points="44,52 44,68 60,60" fill="var(--blue)" opacity=".55"/>
+          </svg>
+          <div class="empty-heading">No runs yet</div>
+          <div class="empty-copy">Start one from Test Explorer to see recent executions here.</div>
+        </div>`;
+      return;
+    }
+    $('recentExecBody').innerHTML = data.runs.map((r, i) => {
+      const icon = statusIcon(r.status);
+      const label = (r.label || r.id).replace(/^\[(SUITE|SPEC)\]\s*/, '');
+      return `<div class="exec-row row-fade-in" style="cursor:pointer;animation-delay:${staggerDelayMs(i)}ms" onclick="location.href='/results.html?id=${r.id}'">
+        <div class="exec-status-icon ${icon.cls}">${icon.svg}</div>
+        <div class="exec-info">
+          <div class="exec-title">${label}</div>
+          <div class="exec-sub">${r.suiteName || ''} · ${r.passed || 0}✓ ${r.failed || 0}✗</div>
+        </div>
+        <div class="exec-time">${fmtRelative(r.startTime)}</div>
+      </div>`;
+    }).join('');
+  } catch (err) {
+    $('recentExecBody').innerHTML = `<div class="empty">⚠ ${err.message}</div>`;
+  }
+}
+
+async function loadFailureHighlight() {
+  try {
+    const data = await fetch('/api/insights/top-failing?days=14').then(r => r.json());
+    if (!data.ok) throw new Error(data.error);
+    const top = data.topFailingTest;
+    if (!top) {
+      $('failureHighlight').innerHTML = `
+        <div class="empty-illustration">
+          <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="50" cy="50" r="34" stroke="var(--green)" stroke-width="3"/>
+            <polyline points="35,51 45,61 66,39" stroke="var(--green)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <div class="empty-heading">All clear 🎉</div>
+          <div class="empty-copy">No failures in the last 14 days.</div>
+        </div>`;
+      return;
+    }
+    const trendVals = data.trend.map(h => h.status === 'failed' ? 1 : 0);
+    $('failureHighlight').innerHTML = `
+      <div class="fh-title">${top.suiteName} has ${top.consecutiveFailures} consecutive failure${top.consecutiveFailures === 1 ? '' : 's'}</div>
+      <div class="fh-sub">Last failure ${fmtRelative(top.lastFailTime)}</div>
+      <div class="fh-trend">${sparklineSvg(trendVals.length ? trendVals : [0], 'var(--red)')}</div>
+      <div class="fh-top-label">Top Failing Test</div>
+      <div class="fh-top-test">
+        <span class="name">${top.title}</span>
+        <span class="count">Failed ${top.failCount}×</span>
+      </div>
+      <a class="btn-primary" style="width:100%;justify-content:center;margin-top:14px;text-decoration:none" href="/ai-workspace.html">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4z"/></svg>
+        Analyze with AI
+      </a>`;
+  } catch (err) {
+    $('failureHighlight').innerHTML = `<div class="empty">⚠ ${err.message}</div>`;
+  }
+}
+
+let quarantineExpanded = false;
+async function loadQuarantineAlert() {
+  try {
+    const data = await fetch('/api/quarantine').then(r => r.json());
+    if (!data.ok || !data.count) { $('quarantineAlertSlot').innerHTML = ''; return; }
+    renderQuarantineAlert(data.entries);
+  } catch (_) {
+    $('quarantineAlertSlot').innerHTML = '';
+  }
+}
+function renderQuarantineAlert(entries) {
+  const list = quarantineExpanded ? `
+    <table style="width:100%;margin-top:10px;font-size:11.5px">
+      <thead><tr><th style="text-align:left">Test</th><th style="text-align:left">Reason</th><th style="text-align:left">Owner</th><th style="text-align:right">Days left</th></tr></thead>
+      <tbody>${entries.map(e => `<tr>
+        <td class="col-mono">${escapeHtml(e.key)}</td>
+        <td>${escapeHtml(e.reason)}</td>
+        <td>${escapeHtml(e.requestedBy)}</td>
+        <td style="text-align:right">${e.daysRemaining}</td>
+      </tr>`).join('')}</tbody>
+    </table>` : '';
+  $('quarantineAlertSlot').innerHTML = `
+    <div class="quarantine-alert">
+      <div>⚠ ${entries.length} test${entries.length === 1 ? '' : 's'} currently quarantined
+        <span class="qa-detail">— excluded from suite runs until their expiry</span>
+      </div>
+      <a href="#" onclick="quarantineExpanded=!quarantineExpanded; loadQuarantineAlert(); return false;">${quarantineExpanded ? 'Hide' : 'View list'}</a>
+    </div>
+    ${list}`;
+}
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+}
+
+// ─────────────────────────────────────────
+// AI Insights (v1.9.0) — 4 short insight cards, distinct from Report
+// Center's AI-generated text summary: these are computed directly from
+// existing endpoints (no Groq call, no new aggregator), just re-surfaced
+// here for a quick daily read. Long Running Suites threshold: 15 min avg,
+// matching the Execution Center mockup's own bar.
+// ─────────────────────────────────────────
+const LONG_RUNNING_THRESHOLD_MS = 15 * 60 * 1000;
+
+function aiInsightCard({ iconBg, iconColor, icon, title, body, linkText, linkHref }) {
+  return `<div class="quick-card" onclick="location.href='${linkHref}'">
+    <div class="quick-icon" style="background:${iconBg};color:${iconColor}">${icon}</div>
+    <div class="quick-title">${title}</div>
+    <div class="quick-sub">${body}</div>
+    <div style="font-size:12px;color:var(--blue);font-weight:600;margin-top:2px">${linkText} →</div>
+  </div>`;
+}
+
+async function loadAiInsights() {
+  try {
+    const [overview, flaky, suiteHealth] = await Promise.all([
+      fetch('/api/reports/overview?days=7').then(r => r.json()),
+      fetch('/api/flaky?days=7').then(r => r.json()),
+      fetch('/api/insights/suite-health?days=7').then(r => r.json()),
+    ]);
+
+    const cards = [];
+
+    // Pass Rate Drop / Improvement
+    if (overview.ok && overview.deltas && overview.deltas.passRate !== null) {
+      const d = overview.deltas.passRate;
+      const dropped = d < 0;
+      cards.push(aiInsightCard({
+        iconBg: dropped ? 'var(--red-bg)' : 'var(--green-bg)', iconColor: dropped ? 'var(--red)' : 'var(--green)',
+        icon: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="${dropped ? '3 7 12 16 21 7' : '3 17 12 8 21 17'}"/></svg>`,
+        title: dropped ? 'Pass Rate Drop' : 'Pass Rate Improving',
+        body: `Pass rate ${dropped ? 'dropped' : 'improved'} ${Math.abs(d)}% compared to last week.`,
+        linkText: 'Investigate', linkHref: '/report-center.html',
+      }));
+    } else {
+      cards.push(aiInsightCard({
+        iconBg: 'var(--gray-bg)', iconColor: 'var(--gray)',
+        icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="12" cy="12" r="9"/></svg>',
+        title: 'Pass Rate', body: 'Not enough history yet to compare weeks.',
+        linkText: 'View report', linkHref: '/report-center.html',
+      }));
+    }
+
+    // Flaky Tests
+    const flakyCount = flaky.ok ? flaky.tests.length : 0;
+    cards.push(aiInsightCard({
+      iconBg: 'var(--orange-bg)', iconColor: 'var(--orange)',
+      icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M4 4v5h5"/><path d="M20 20v-5h-5"/><path d="M5 9a7 7 0 0112-3M19 15a7 7 0 01-12 3"/></svg>',
+      title: 'Flaky Tests',
+      body: flakyCount ? `${flakyCount} test${flakyCount === 1 ? '' : 's'} ${flakyCount === 1 ? 'is' : 'are'} flaky and need attention.` : 'No flaky tests detected this week.',
+      linkText: 'View flaky tests', linkHref: '/insights.html',
+    }));
+
+    // Long Running Suites
+    const suites = suiteHealth.ok ? suiteHealth.suites : [];
+    const longRunning = suites.filter(s => s.avgDurationMs && s.avgDurationMs > LONG_RUNNING_THRESHOLD_MS);
+    cards.push(aiInsightCard({
+      iconBg: 'var(--blue-bg)', iconColor: 'var(--blue)',
+      icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>',
+      title: 'Long Running Suites',
+      body: longRunning.length ? `${longRunning.length} suite${longRunning.length === 1 ? '' : 's'} have avg duration &gt; 15 min.` : 'No suites running longer than 15 min on average.',
+      linkText: 'Optimize', linkHref: '/insights.html',
+    }));
+
+    // Best Performing Suite
+    const ranked = suites.filter(s => s.runsInRange > 0 && s.passRate !== null).sort((a, b) => b.passRate - a.passRate);
+    const best = ranked[0];
+    cards.push(aiInsightCard({
+      iconBg: 'var(--green-bg)', iconColor: 'var(--green)',
+      icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="18 15 12 9 6 15"/></svg>',
+      title: 'Best Performing Suite',
+      body: best ? `${escapeHtml(best.suiteName)} — ${best.passRate}% pass rate this week.` : 'No suites with runs in the last 7 days.',
+      linkText: 'View details', linkHref: best ? `/report-center.html?suite=${encodeURIComponent(best.suiteName)}` : '/report-center.html',
+    }));
+
+    $('aiInsightsGrid').innerHTML = cards.join('');
+  } catch (err) {
+    $('aiInsightsGrid').innerHTML = `<div class="empty">⚠ ${err.message}</div>`;
+  }
+}
+
+function onShellReady() {
+  greet();
+  loadStats().then(loadTagAdoptionCard);
+  loadRecentExecutions();
+  loadFailureHighlight();
+  loadQuarantineAlert();
+  loadSetupBanner();
+  loadAiInsights();
+}
+initShell('overview');
+</script>
+</body>
+</html>

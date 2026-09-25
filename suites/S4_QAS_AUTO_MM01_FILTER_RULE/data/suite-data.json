@@ -1,0 +1,254 @@
+{
+  "suite": "S4_QAS_AUTO_MM01_FILTER_RULE",
+  "description": "SimpleMDG S4 QAS - Filter Rule (Business Rule) Automated Test Suite",
+  "environment": "QAS",
+  "baseUrl": "https://smdg-s4-qas-simplemdg-web.cfapps.br10.hana.ondemand.com",
+  "templates": {
+    "AUTO_MM01_FILTER_RULE": {
+      "name": "AUTO_MM01_FILTER_RULE",
+      "objectType": "Product"
+    }
+  },
+  "comments": {
+    "requestorSubmit": "Automation: Filter Rule - Requestor has submitted this request",
+    "approverApprove": "Automation: Filter Rule - Approver has approved this request",
+    "stewardActivate": "Automation: Filter Rule - Steward has activated this request"
+  },
+  "filterRules": {
+    "R1": {
+      "sourceSection": "PLANTDATA",
+      "sourceField": "plant",
+      "targetSection": "LOTSIZEDATA",
+      "targetField": "storageCostsPercentageCode",
+      "property": "plant",
+      "testValue": "0001",
+      "sourceTab": "Plant Data",
+      "sourceAddIndex": 7,
+      "sourceF4Index": 0,
+      "targetTab": "MRP1",
+      "targetF4Index": 12,
+      "verifyColumn": "Plant",
+      "sourceSectionTitle": "Plant Data",
+      "sourceLabel": "Plant",
+      "targetLabel": "Storage Costs Code",
+      "targetSectionTitle": "Lot Size Data"
+    },
+    "R2": {
+      "sourceSection": "BASICGENERAL",
+      "sourceField": "baseUnit",
+      "targetSection": "GENERALPURCHASINGDATA",
+      "targetField": "purchaseOrderQuantityUnit",
+      "property": "unitOfMeasure",
+      "testValue": "BAG",
+      "sourceTab": "Basic Data",
+      "sourceAddIndex": null,
+      "sourceF4Index": 2,
+      "targetTab": "Purchasing Data",
+      "targetF4Index": 32,
+      "verifyColumn": "Unit Of Measure",
+      "sourceLabel": "Base Unit of Measure",
+      "targetLabel": "Order Unit",
+      "targetSectionTitle": "Purchasing Data"
+    },
+    "R3": {
+      "sourceSection": "CLASSIFICATION",
+      "sourceField": "class",
+      "targetSection": "CHARACTERISTIC",
+      "targetField": "charc",
+      "property": "classification",
+      "testValue": "FOOD",
+      "sourceTab": null,
+      "sourceAddIndex": 3,
+      "sourceF4Index": 1,
+      "targetTab": null,
+      "targetF4Index": 2,
+      "verifyColumn": "Class",
+      "sourceSectionTitle": "Classification",
+      "sourceLabel": "Class",
+      "targetLabel": "Characteristic",
+      "nestedAdd": true,
+      "testValue2": "MODELS"
+    },
+    "R4": {
+      "sourceSection": "UNITSOFMEASURE",
+      "sourceField": "alternativeUnit",
+      "targetSection": "UNITSOFMEASURE",
+      "targetField": "productMeasurementUnit",
+      "property": "unitOfMeasure",
+      "testValue": "DM",
+      "sourceTab": null,
+      "sourceAddIndex": 2,
+      "sourceF4Index": 0,
+      "targetTab": null,
+      "targetF4Index": 2,
+      "verifyColumn": "Unit Of Measure",
+      "sourceSectionTitle": "Units of Measure",
+      "sourceLabel": "Alternative Unit",
+      "targetLabel": "Unit of Dimension",
+      "sameDialog": true
+    },
+    "R5": {
+      "sourceSection": "PLANTDATA",
+      "sourceField": "plant",
+      "targetSection": "GENERALPLANTDATASTORAGE",
+      "targetField": "plant",
+      "property": "plantID",
+      "testValue": "A010",
+      "sourceTab": "Plant Data",
+      "sourceAddIndex": 7,
+      "sourceF4Index": 0,
+      "targetTab": "Plant Data/Storage Location",
+      "targetF4Index": 5,
+      "verifyColumn": "Plant ID",
+      "sourceSectionTitle": "Plant Data",
+      "sourceLabel": "Plant",
+      "targetLabel": "Plant",
+      "targetSectionTitle": "Plant Data/Storage Location",
+      "targetNeedsAdd": true
+    },
+    "R6": {
+      "sourceSection": "WAREHOUSEDATA",
+      "sourceField": "wareHouseNumber",
+      "targetSection": "STORAGESTRATEGIES",
+      "targetField": "stockRemovalIndicator",
+      "property": "warehouseNumber",
+      "testValue": "001",
+      "sourceTab": "Warehouse Data",
+      "sourceAddIndex": 8,
+      "sourceF4Index": 0,
+      "targetTab": "Storage strategies",
+      "targetF4Index": 1,
+      "verifyColumn": "Warehouse Number",
+      "sourceSectionTitle": "Warehouse Data",
+      "sourceLabel": "Warehouse Number",
+      "targetLabel": "Stock removal",
+      "targetSectionTitle": "Storage strategies"
+    }
+  },
+  "testData": {
+    "fr-e2e-mm-01": {
+      "description": "Admin: Navigation & UI for Filter Rule page",
+      "priority": "High",
+      "templateName": "AUTO_MM01_FILTER_RULE"
+    },
+    "fr-e2e-mm-02": {
+      "description": "Admin: CRUD + Validation for Filter Rules",
+      "priority": "High",
+      "templateName": "AUTO_MM01_FILTER_RULE",
+      "rules": [
+        "R1",
+        "R2"
+      ]
+    },
+    "fr-e2e-mm-03": {
+      "description": "Main: 6 Filter Rules pairwise verification",
+      "priority": "High",
+      "templateName": "AUTO_MM01_FILTER_RULE",
+      "objectType": "Product",
+      "rules": [
+        "R1",
+        "R2",
+        "R3",
+        "R4",
+        "R5",
+        "R6"
+      ]
+    },
+    "fr-e2e-mm-04": {
+      "description": "Rule Chaining: R2 (Base Unit→Order Unit) + R4 (Alt Unit→Unit of Dimension)",
+      "priority": "High",
+      "templateName": "AUTO_MM01_FILTER_RULE",
+      "objectType": "Product",
+      "rules": [
+        "R2",
+        "R4"
+      ]
+    },
+    "fr-e2e-mm-05": {
+      "description": "Default Value: Verify R2 auto-fills Order Unit from Base Unit",
+      "priority": "Medium",
+      "templateName": "AUTO_MM01_FILTER_RULE",
+      "objectType": "Product",
+      "rules": [
+        "R2"
+      ]
+    },
+    "fr-e2e-mm-06": {
+      "description": "State ON/OFF: Toggle R2 ON/OFF and verify filter behavior",
+      "priority": "High",
+      "templateName": "AUTO_MM01_FILTER_RULE",
+      "objectType": "Product",
+      "rules": [
+        "R2"
+      ]
+    },
+    "fr-e2e-mm-07": {
+      "description": "Workflow: R2 full E2E with submit, approve, activate",
+      "priority": "High",
+      "templateName": "AUTO_MM01_FILTER_RULE",
+      "objectType": "Product",
+      "sourceCR": "CR0000024321",
+      "rules": [
+        "R2"
+      ],
+      "header": {
+        "priority": "Medium"
+      },
+      "expectedStatuses": {
+        "afterSubmit": "SUBMITTED",
+        "afterApprove": "APPROVED",
+        "afterActivate": "ACTIVATED"
+      }
+    },
+    "fr-e2e-mm-08": {
+      "description": "Multiple Entries: R3 with multi-line Classification",
+      "priority": "Medium",
+      "templateName": "AUTO_MM01_FILTER_RULE",
+      "objectType": "Product",
+      "rules": [
+        "R3"
+      ]
+    },
+    "fr-e2e-mm-09": {
+      "description": "Copy & Draft: R4 with save draft + resubmit",
+      "priority": "Medium",
+      "templateName": "AUTO_MM01_FILTER_RULE",
+      "objectType": "Product",
+      "sourceCR": "CR0000024321",
+      "rules": [
+        "R4"
+      ],
+      "header": {
+        "priority": "Medium"
+      },
+      "expectedStatuses": {
+        "afterDraft": "DRAFT",
+        "afterSubmit": "SUBMITTED"
+      }
+    },
+    "fr-e2e-mm-10": {
+      "description": "F4 Lookup: Free input regression after R2 filter rule applied",
+      "priority": "Medium",
+      "templateName": "AUTO_MM01_FILTER_RULE",
+      "objectType": "Product",
+      "rules": [
+        "R2"
+      ]
+    },
+    "fr-e2e-mm-11": {
+      "description": "FR-E2E-MM-11 FilterRule R1 PLANTDATA/plant→LOTSIZEDATA/storageCostsPercentageCode Plant=0001",
+      "priority": "Critical",
+      "templateName": "AUTO_MM01_FILTER_RULE",
+      "objectType": "Product",
+      "sourceCR": "CR0000024321",
+      "ruleId": "R1",
+      "header": {
+        "description": "FR-E2E-MM-11: E2E Smoke Filter Rule",
+        "priority": "Medium"
+      },
+      "expectedStatuses": {
+        "afterSubmit": "SUBMITTED"
+      }
+    }
+  }
+}

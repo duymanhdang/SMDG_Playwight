@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Compare Runs — SimpleMDG Automation Hub</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/shared.css">
+<style>
+.picker-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.picker-field { display: flex; flex-direction: column; gap: 4px; }
+.picker-field label { font-size: 10.5px; font-weight: 600; color: var(--text-4); text-transform: uppercase; letter-spacing: .05em; }
+.picker-field select { padding: 7px 10px; border: 1px solid var(--border-md); border-radius: var(--r); background: var(--surface); color: var(--text); font-size: 12px; min-width: 260px; }
+.swap-btn { margin-top: 16px; }
+
+.diff-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.diff-card { border-radius: var(--r-lg); padding: 14px 16px; text-align: center; border: 1px solid var(--border); }
+.diff-card .val { font-size: 22px; font-weight: 700; font-family: var(--mono); }
+.diff-card .lbl { font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-4); margin-top: 3px; }
+.diff-card.newly-failed { background: var(--red-bg); border-color: var(--red-bdr); }
+.diff-card.newly-failed .val { color: var(--red); }
+.diff-card.newly-fixed { background: var(--green-bg); border-color: var(--green-bdr); }
+.diff-card.newly-fixed .val { color: var(--green); }
+.diff-card.still-failing { background: var(--orange-bg); border-color: var(--orange-bdr); }
+.diff-card.still-failing .val { color: var(--orange); }
+.diff-card.still-passing .val { color: var(--text-3); }
+
+.diff-group-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; padding: 10px 16px; }
+.diff-group-title.newly-failed { color: var(--red); }
+.diff-group-title.newly-fixed { color: var(--green); }
+.diff-group-title.still-failing { color: var(--orange); }
+</style>
+</head>
+<body>
+<div id="shell-slot"></div>
+
+<div class="main">
+  <div class="topbar">
+    <div>
+      <div class="topbar-title">Compare Runs</div>
+      <div class="topbar-sub">See what newly failed or got fixed between two runs of the same suite</div>
+    </div>
+  </div>
+
+  <div class="page-body">
+    <div class="panel">
+      <div class="panel-body">
+        <div class="picker-row">
+          <div class="picker-field">
+            <label>Run A (baseline)</label>
+            <select id="runA"></select>
+          </div>
+          <div class="picker-field">
+            <label>Run B (compare against)</label>
+            <select id="runB"></select>
+          </div>
+          <button class="btn-secondary swap-btn" onclick="swapRuns()">⇄ Swap</button>
+          <button class="btn-primary swap-btn" onclick="loadCompare()">Compare</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="compareResult"></div>
+  </div>
+</div>
+
+<script src="/shared.js"></script>
+<script>
+const params = new URLSearchParams(location.search);
+let allRuns = [];
+
+function fmtDate(ms) {
+  if (!ms) return '—';
+  return new Date(ms).toLocaleString('en-GB', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+}
+
+async function loadRunOptions() {
+  try {
+    const data = await fetch('/api/runs/history?limit=100').then(r => r.json());
+    if (!data.ok) throw new Error(data.error);
+    allRuns = data.runs.filter(r => r.status !== 'running');
+    const opts = allRuns.map(r => `<option value="${r.id}">${(r.label || r.id).replace(/^\[(SUITE|SPEC)\]\s*/, '')} — ${r.suiteName} — ${fmtDate(r.startTime)}</option>`).join('');
+    $('runA').innerHTML = opts;
+    $('runB').innerHTML = opts;
+
+    const presetA = params.get('a');
+    if (presetA && allRuns.some(r => r.id === presetA)) {
+      $('runA').value = presetA;
+      // Default Run B to the next-most-recent run of the same suite, if any
+      const suite = allRuns.find(r => r.id === presetA)?.suiteName;
+      const sameSuite = allRuns.filter(r => r.suiteName === suite && r.id !== presetA);
+      if (sameSuite.length) $('runB').value = sameSuite[0].id;
+      loadCompare();
+    }
+  } catch (err) {
+    $('compareResult').innerHTML = `<div class="panel"><div class="empty">⚠ ${err.message}</div></div>`;
+  }
+}
+
+function swapRuns() {
+  const a = $('runA').value, b = $('runB').value;
+  $('runA').value = b; $('runB').value = a;
+}
+
+function testRow(entry, showError) {
+  return `<tr>
+    <td class="col-mono">${entry.title}</td>
+    ${showError ? `<td class="error-cell" style="font-size:10.5px">${entry.errorB ? escapeHtml(entry.errorB.slice(0, 200)) : '—'}</td>` : ''}
+  </tr>`;
+}
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+}
+
+function groupTable(title, cls, entries, showError) {
+  if (!entries.length) return '';
+  return `
+    <div class="panel" style="margin-top:14px">
+      <div class="diff-group-title ${cls}">${title} (${entries.length})</div>
+      <table>
+        <thead><tr><th style="width:${showError ? '40%' : '100%'}">Test</th>${showError ? '<th>Error</th>' : ''}</tr></thead>
+        <tbody>${entries.map(e => testRow(e, showError)).join('')}</tbody>
+      </table>
+    </div>`;
+}
+
+async function loadCompare() {
+  const a = $('runA').value, b = $('runB').value;
+  if (!a || !b) return;
+  if (a === b) {
+    $('compareResult').innerHTML = '<div class="panel"><div class="empty">Pick two different runs to compare.</div></div>';
+    return;
+  }
+  $('compareResult').innerHTML = '<div class="spinner"></div>';
+  try {
+    const data = await fetch(`/api/runs/compare?a=${a}&b=${b}`).then(r => r.json());
+    if (!data.ok) throw new Error(data.error);
+
+    const summary = `
+      <div class="panel" style="margin-top:14px">
+        <div class="panel-head">
+          <span class="panel-title">${data.runA.label.replace(/^\[(SUITE|SPEC)\]\s*/, '')} (${fmtDate(data.runA.startTime)}) → ${data.runB.label.replace(/^\[(SUITE|SPEC)\]\s*/, '')} (${fmtDate(data.runB.startTime)})</span>
+        </div>
+        <div class="panel-body">
+          <div class="diff-summary">
+            <div class="diff-card newly-failed"><div class="val">${data.newlyFailed.length}</div><div class="lbl">Newly Failed</div></div>
+            <div class="diff-card newly-fixed"><div class="val">${data.newlyFixed.length}</div><div class="lbl">Newly Fixed</div></div>
+            <div class="diff-card still-failing"><div class="val">${data.stillFailing.length}</div><div class="lbl">Still Failing</div></div>
+            <div class="diff-card still-passing"><div class="val">${data.stillPassing.length}</div><div class="lbl">Still Passing</div></div>
+          </div>
+        </div>
+      </div>`;
+
+    $('compareResult').innerHTML = summary
+      + groupTable('Newly Failed — investigate these first', 'newly-failed', data.newlyFailed, true)
+      + groupTable('Newly Fixed', 'newly-fixed', data.newlyFixed, false)
+      + groupTable('Still Failing', 'still-failing', data.stillFailing, true);
+  } catch (err) {
+    $('compareResult').innerHTML = `<div class="panel"><div class="empty">⚠ ${err.message}</div></div>`;
+  }
+}
+
+function onShellReady() {
+  loadRunOptions();
+}
+initShell('results');
+</script>
+</body>
+</html>

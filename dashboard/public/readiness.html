@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Readiness & Coverage — SimpleMDG Automation Hub</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/shared.css">
+<style>
+.filters { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.filters select {
+  padding: 6px 10px; border: 1px solid var(--border-md); border-radius: var(--r);
+  background: var(--surface); color: var(--text); font-size: var(--text-sm); font-family: var(--sans);
+}
+
+.verdict-banner {
+  display: flex; align-items: center; gap: 14px; padding: var(--space-5) var(--space-5); margin: 0 var(--space-4) var(--space-4);
+  border-radius: var(--r); border: 1px solid var(--border);
+}
+.verdict-banner .verdict-icon {
+  width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; font-weight: 700; font-size: var(--text-xl); font-family: var(--mono);
+}
+.verdict-banner .verdict-title { font-size: var(--text-lg); font-weight: 700; }
+.verdict-banner .verdict-sub { font-size: var(--text-sm); color: var(--text-3); margin-top: 2px; }
+.verdict-banner.v-pass { background: var(--green-bg); border-color: var(--green-bdr); }
+.verdict-banner.v-pass .verdict-icon { background: var(--green); color: #fff; }
+.verdict-banner.v-pass .verdict-title { color: var(--green); }
+.verdict-banner.v-warn { background: var(--orange-bg); border-color: var(--orange-bdr); }
+.verdict-banner.v-warn .verdict-icon { background: var(--orange); color: #fff; }
+.verdict-banner.v-warn .verdict-title { color: var(--orange); }
+.verdict-banner.v-fail { background: var(--red-bg); border-color: var(--red-bdr); }
+.verdict-banner.v-fail .verdict-icon { background: var(--red); color: #fff; }
+.verdict-banner.v-fail .verdict-title { color: var(--red); }
+
+.check-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--space-3); padding: var(--space-4); }
+.check-card { border: 1px solid var(--border); border-radius: var(--r); padding: 14px; background: var(--surface-2); }
+.check-card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.check-label { font-size: var(--text-sm); font-weight: 600; color: var(--text-2); }
+.check-badge {
+  font-size: var(--text-2xs); font-weight: 700; text-transform: uppercase; letter-spacing: .05em;
+  padding: 2px 8px; border-radius: 999px;
+}
+.check-badge.pass { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-bdr); }
+.check-badge.warn { background: var(--orange-bg); color: var(--orange); border: 1px solid var(--orange-bdr); }
+.check-badge.fail { background: var(--red-bg); color: var(--red); border: 1px solid var(--red-bdr); }
+.check-detail { font-size: var(--text-sm); color: var(--text-3); line-height: 1.5; }
+.check-detail .num { font-family: var(--mono); font-weight: 600; color: var(--text); }
+
+.risk-cell { font-family: var(--mono); text-align: right; }
+.risk-bar-track { flex: 1; height: 8px; background: var(--surface-3); border-radius: 4px; overflow: hidden; }
+.risk-bar-fill { height: 100%; border-radius: 4px; }
+.risk-bar-wrap { display: flex; align-items: center; gap: 8px; }
+
+.cov-cell { text-align: center; font-family: var(--mono); font-size: var(--text-sm); }
+.cov-pass { color: var(--green); }
+.cov-fail { color: var(--red); }
+.cov-quar { color: var(--orange); }
+.cov-none { color: var(--text-4); }
+.tag-warn-banner {
+  display: none; align-items: center; gap: 10px; padding: 10px 14px; margin: 0 var(--space-4) var(--space-4);
+  border-radius: var(--r); background: var(--amber-bg); border: 1px solid var(--amber-bdr);
+  color: var(--amber); font-size: var(--text-sm); cursor: pointer;
+}
+.tag-warn-banner .num { font-family: var(--mono); font-weight: 700; }
+.tag-warn-detail { font-size: var(--text-sm); }
+.tag-warn-detail summary { cursor: pointer; color: var(--text-3); padding: 4px 0; }
+.empty-state-cta {
+  margin-top: 8px; padding: 10px 12px; border-radius: var(--r); background: var(--surface-3);
+  font-family: var(--mono); font-size: var(--text-xs); color: var(--text-2); white-space: pre-wrap;
+}
+
+@media print {
+  .sidebar, .topbar .filters { display: none !important; }
+  .verdict-banner, .check-card { break-inside: avoid; }
+}
+</style>
+</head>
+<body>
+<div id="shell-slot"></div>
+
+<div class="main">
+  <div class="topbar">
+    <div>
+      <div class="topbar-title">Readiness &amp; Coverage</div>
+      <div class="topbar-sub">Release readiness / go-no-go rollup, requirement risk ranking, and @bp: coverage matrix</div>
+    </div>
+    <div class="filters">
+      <select id="fDays" onchange="loadAll()">
+        <option value="7">Last 7 days</option>
+        <option value="14">Last 14 days</option>
+        <option value="30" selected>Last 30 days</option>
+        <option value="90">Last 90 days</option>
+      </select>
+      <select id="fSuite" onchange="loadAll()"><option value="">All suites</option></select>
+    </div>
+  </div>
+
+  <div class="page-body">
+    <div id="verdictBanner" class="verdict-banner"><div class="spinner"></div></div>
+
+    <div class="panel">
+      <div class="panel-head"><span class="panel-title">Checks</span></div>
+      <div id="checkGrid" class="check-grid"><div class="spinner"></div></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <span class="panel-title">Requirement risk</span>
+        <span style="font-size:11px;color:var(--text-4)">risk = failRate×0.4 + coverageGap×0.4 + quarantineRatio×0.2</span>
+      </div>
+      <div id="riskBody" style="padding:0"><div class="spinner"></div></div>
+    </div>
+
+    <div id="tagWarnBanner" class="tag-warn-banner"></div>
+    <div class="panel">
+      <div class="panel-head"><span class="panel-title">Coverage Matrix</span></div>
+      <div id="coverageBody" style="padding:0 4px"><div class="spinner"></div></div>
+    </div>
+    <div class="panel" id="noCoveragePanel" style="display:none">
+      <div class="panel-head"><span class="panel-title">No Coverage (no @bp: tag)</span></div>
+      <div id="noCoverageBody" style="padding:0 4px"></div>
+    </div>
+    <div class="panel" id="tagValidationPanel" style="display:none">
+      <div class="panel-head"><span class="panel-title">Tag taxonomy gaps</span></div>
+      <div id="tagValidationBody" style="padding:12px 16px"></div>
+    </div>
+  </div>
+</div>
+
+<script src="/shared.js"></script>
+<script>
+function escapeHtml(str) {
+  return String(str == null ? '' : str).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+}
+
+async function populateSuiteFilter() {
+  try {
+    const data = await fetch('/api/suites').then(r => r.json());
+    if (!data.ok) return;
+    const sel = $('fSuite');
+    data.suites.forEach(s => {
+      const opt = document.createElement('option');
+      opt.value = s.id; opt.textContent = s.short;
+      sel.appendChild(opt);
+    });
+  } catch (_) {}
+}
+
+function query() {
+  const qs = new URLSearchParams();
+  qs.set('days', $('fDays').value);
+  if ($('fSuite').value) qs.set('suite', $('fSuite').value);
+  return qs;
+}
+
+const VERDICT_META = {
+  PASS: { cls: 'v-pass', badge: 'pass', label: 'Ready to ship', icon: '✓' },
+  WARN: { cls: 'v-warn', badge: 'warn', label: 'Ship with caution', icon: '!' },
+  FAIL: { cls: 'v-fail', badge: 'fail', label: 'Not ready to ship', icon: '✕' },
+};
+
+function renderBanner(overall) {
+  const meta = VERDICT_META[overall] || VERDICT_META.WARN;
+  $('verdictBanner').className = `verdict-banner ${meta.cls}`;
+  $('verdictBanner').innerHTML = `
+    <div class="verdict-icon">${meta.icon}</div>
+    <div>
+      <div class="verdict-title">${overall} — ${meta.label}</div>
+      <div class="verdict-sub">Overall verdict is the worst of the individual checks below.</div>
+    </div>`;
+}
+
+function checkDetailHtml(check) {
+  const d = check.detail || {};
+  switch (check.id) {
+    case 'passRate':
+      return `Pass rate <span class="num">${d.passRate === null || d.passRate === undefined ? '—' : d.passRate + '%'}</span> vs threshold <span class="num">${d.threshold}%</span>`;
+    case 'quarantine':
+      return `<span class="num">${d.pastDue}</span> past-due, <span class="num">${d.nearExpiry}</span> near-expiry (≤${d.nearExpiryDays}d) of <span class="num">${d.total}</span> quarantined`;
+    case 'coverage':
+      return `Coverage <span class="num">${d.coveragePct === null || d.coveragePct === undefined ? '—' : d.coveragePct + '%'}</span> vs threshold <span class="num">${d.threshold}%</span>`;
+    case 'regressions':
+      return `<span class="num">${d.count}</span> test(s) regressed since the prior run of their suite`;
+    default:
+      return '';
+  }
+}
+
+function renderChecks(checks) {
+  $('checkGrid').innerHTML = checks.map(c => {
+    const meta = VERDICT_META[c.verdict] || VERDICT_META.WARN;
+    return `
+      <div class="check-card">
+        <div class="check-card-head">
+          <span class="check-label">${escapeHtml(c.label)}</span>
+          <span class="check-badge ${meta.badge}">${c.verdict}</span>
+        </div>
+        <div class="check-detail">${checkDetailHtml(c)}</div>
+      </div>`;
+  }).join('');
+}
+
+async function loadReadiness() {
+  try {
+    const data = await fetch(`/api/reports/readiness?${query()}`).then(r => r.json());
+    if (!data.ok) throw new Error(data.error);
+    renderBanner(data.overall);
+    renderChecks(data.checks);
+  } catch (err) {
+    $('verdictBanner').className = 'verdict-banner v-warn';
+    $('verdictBanner').innerHTML = `<div class="verdict-icon">!</div><div><div class="verdict-title">Could not load readiness</div><div class="verdict-sub">${escapeHtml(err.message)}</div></div>`;
+    $('checkGrid').innerHTML = '';
+  }
+}
+
+function riskColorVar(score) {
+  if (score >= 60) return '--red';
+  if (score >= 30) return '--orange';
+  return '--green';
+}
+
+function renderRisk(risk) {
+  if (!risk || !risk.length) {
+    $('riskBody').innerHTML = '<div class="empty">No @bp: business-process tags found in any spec file yet.</div>';
+    return;
+  }
+  $('riskBody').innerHTML = `
+    <table>
+      <thead><tr>
+        <th style="width:26%">Business Process</th>
+        <th style="width:18%">Risk score</th>
+        <th>Fail rate</th>
+        <th>Coverage gap</th>
+        <th>Quarantine ratio</th>
+        <th style="text-align:right">Passing / Failing / Quarantined</th>
+      </tr></thead>
+      <tbody>
+        ${risk.map(r => `<tr>
+          <td class="col-mono">${escapeHtml(r.businessProcess)}</td>
+          <td>
+            <div class="risk-bar-wrap">
+              <div class="risk-bar-track"><div class="risk-bar-fill" style="width:${r.riskScore}%;background:var(${riskColorVar(r.riskScore)})"></div></div>
+              <span class="risk-cell">${r.riskScore}</span>
+            </div>
+          </td>
+          <td class="risk-cell">${r.failRatePct}%</td>
+          <td class="risk-cell">${r.coverageGapPct}%</td>
+          <td class="risk-cell">${r.quarantineRatioPct}%</td>
+          <td style="text-align:right;color:var(--text-3);font-family:var(--mono)">${r.automatedPassing} / ${r.automatedFailing} / ${r.quarantined}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>`;
+}
+
+async function loadRisk() {
+  try {
+    const data = await fetch(`/api/reports/requirement-risk?${query()}`).then(r => r.json());
+    if (!data.ok) throw new Error(data.error);
+    renderRisk(data.risk);
+  } catch (err) {
+    $('riskBody').innerHTML = `<div class="empty">⚠ ${escapeHtml(err.message)}</div>`;
+  }
+}
+
+// ─────────────────────────────────────────
+// Coverage Matrix + Tag taxonomy gaps (v1.6.0 — merged in from the retired
+// standalone Coverage page; same data, reused from the same /api/coverage
+// and /api/tags/validation endpoints, just rendered here now).
+// ─────────────────────────────────────────
+
+// v1.8.0 part 2 — small inline illustration shown above the (unchanged)
+// v1.6.0 copy below, so the good differentiated empty-state text keeps
+// doing its job while the page gains a visual instead of a bare text block.
+const COVERAGE_EMPTY_ILLUSTRATION = `
+  <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="16" y="20" width="30" height="18" rx="3" stroke="var(--border-md)" stroke-width="2.5"/>
+    <rect x="54" y="20" width="30" height="18" rx="3" stroke="var(--border-md)" stroke-width="2.5"/>
+    <rect x="16" y="62" width="30" height="18" rx="3" stroke="var(--border-md)" stroke-width="2.5"/>
+    <path d="M60 68 h20 M60 74 h14" stroke="var(--purple)" stroke-width="2.5" stroke-linecap="round" opacity=".7"/>
+    <path d="M54 71 l4 4 l-4 4" stroke="var(--purple)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" opacity=".7"/>
+  </svg>`;
+
+// v1.6.0 item 3 — three distinct empty states instead of one generic
+// "no @bp: tags found" message, each with exactly one concrete next step.
+function coverageEmptyStateHtml(data) {
+  if (!data.totalSuites) {
+    return `<div class="empty-illustration">${COVERAGE_EMPTY_ILLUSTRATION}<div class="empty">No suites/specs were discovered.
+      <div class="empty-state-cta">Check that PROJECT_ROOT points at a project with a suites/&lt;name&gt;/e2e/*.spec.ts structure, then reload this page.</div></div></div>`;
+  }
+  if (!data.hasAnyRun) {
+    return `<div class="empty-illustration">${COVERAGE_EMPTY_ILLUSTRATION}<div class="empty">${data.totalSpecs} spec file(s) were found, but no suite has completed a run yet.
+      <div class="empty-state-cta">Run a suite from the Home/Explorer page first — coverage is computed from the most recent completed run of each suite.</div></div></div>`;
+  }
+  return `<div class="empty-illustration">${COVERAGE_EMPTY_ILLUSTRATION}<div class="empty">Suites have run, but zero tests have an @bp: tag yet.
+    <div class="empty-state-cta">Add a business-process tag to a test title, e.g.:\n\ntest('create material @bp:material-create', async () => { ... });</div></div></div>`;
+}
+
+async function loadCoverage() {
+  try {
+    const data = await fetch('/api/coverage').then(r => r.json());
+    if (!data.ok) throw new Error(data.error);
+    renderCoverage(data);
+  } catch (err) {
+    $('coverageBody').innerHTML = `<div class="empty">⚠ ${escapeHtml(err.message)}</div>`;
+  }
+}
+
+function renderCoverage(data) {
+  const { groups, noCoverage } = data;
+  if (!groups.length) {
+    $('coverageBody').innerHTML = coverageEmptyStateHtml(data);
+  } else {
+    $('coverageBody').innerHTML = `
+      <table>
+        <thead><tr>
+          <th style="width:34%">Business Process</th>
+          <th class="cov-cell">Passing</th>
+          <th class="cov-cell">Failing</th>
+          <th class="cov-cell">Quarantined</th>
+        </tr></thead>
+        <tbody>
+          ${groups.map(g => `<tr>
+            <td class="col-mono">${escapeHtml(g.businessProcess)}</td>
+            <td class="cov-cell cov-pass">${g.automatedPassing}</td>
+            <td class="cov-cell cov-fail">${g.automatedFailing}</td>
+            <td class="cov-cell cov-quar">${g.quarantined}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`;
+  }
+
+  if (noCoverage && noCoverage.count) {
+    $('noCoveragePanel').style.display = '';
+    $('noCoverageBody').innerHTML = `
+      <table>
+        <thead><tr><th style="width:20%">Suite</th><th>Test</th></tr></thead>
+        <tbody>
+          ${noCoverage.tests.map(t => `<tr>
+            <td>${escapeHtml(t.suiteName)}</td>
+            <td class="col-mono">${escapeHtml(t.title)}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`;
+  } else {
+    $('noCoveragePanel').style.display = 'none';
+  }
+}
+
+async function loadTagValidation() {
+  try {
+    const data = await fetch('/api/tags/validation').then(r => r.json());
+    if (!data.ok) return;
+    renderTagValidation(data);
+  } catch (_) { /* non-critical, fail silently */ }
+}
+
+function renderTagValidation(data) {
+  const { untaggedCount, untaggedBySuite, typos } = data;
+  if (!untaggedCount && (!typos || !typos.length)) return;
+
+  const banner = $('tagWarnBanner');
+  banner.style.display = 'flex';
+  banner.onclick = () => $('tagValidationPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const parts = [];
+  if (untaggedCount) parts.push(`<span class="num">${untaggedCount}</span> spec(s) have no traceability tags`);
+  if (typos && typos.length) parts.push(`<span class="num">${typos.length}</span> likely tag typo(s)`);
+  banner.innerHTML = `⚠ ${parts.join(' · ')} — see "Tag taxonomy gaps" below`;
+
+  $('tagValidationPanel').style.display = '';
+  let html = '';
+  if (untaggedCount) {
+    html += `<details open class="tag-warn-detail"><summary>Untagged specs (${untaggedCount})</summary>
+      <table><thead><tr><th style="width:24%">Suite</th><th>Spec file</th></tr></thead><tbody>
+        ${Object.entries(untaggedBySuite).flatMap(([suite, specs]) => specs.map(spec => `
+          <tr><td class="col-mono">${escapeHtml(suite)}</td><td class="col-mono">${escapeHtml(spec)}</td></tr>`)).join('')}
+      </tbody></table></details>`;
+  }
+  if (typos && typos.length) {
+    html += `<details class="tag-warn-detail"><summary>Likely tag typos (${typos.length})</summary>
+      <table><thead><tr><th style="width:20%">Suite</th><th style="width:36%">File</th><th>Found</th><th>Likely intended</th></tr></thead><tbody>
+        ${typos.map(t => `<tr>
+          <td class="col-mono">${escapeHtml(t.suiteName)}</td>
+          <td class="col-mono">${escapeHtml(t.file)}</td>
+          <td class="col-mono cov-fail">${escapeHtml(t.found)}</td>
+          <td class="col-mono cov-pass">${escapeHtml(t.likelyIntended)}</td>
+        </tr>`).join('')}
+      </tbody></table></details>`;
+  }
+  $('tagValidationBody').innerHTML = html;
+}
+
+function loadAll() {
+  $('verdictBanner').innerHTML = '<div class="spinner"></div>';
+  $('checkGrid').innerHTML = '<div class="spinner"></div>';
+  $('riskBody').innerHTML = '<div class="spinner"></div>';
+  $('coverageBody').innerHTML = '<div class="spinner"></div>';
+  loadReadiness();
+  loadRisk();
+  loadCoverage();
+  loadTagValidation();
+}
+
+function onShellReady() {
+  populateSuiteFilter().then(loadAll);
+}
+initShell('readiness');
+</script>
+</body>
+</html>

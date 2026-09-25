@@ -1,0 +1,292 @@
+{
+  "suite": "S4_QAS_AUTO_MM01_EDITABLE_RULE",
+  "description": "SimpleMDG S4 QAS - Editable Rule (Business Rule) Automated Test Suite",
+  "environment": "QAS",
+  "templates": {
+    "AUTO_MM01_EDITABLE_RULE": {
+      "name": "AUTO_MM01_EDITABLE_RULE",
+      "objectType": "Product"
+    }
+  },
+  "comments": {
+    "requestorSubmit": "Automation: Editable Rule - Requestor has submitted this request",
+    "approverApprove": "Automation: Editable Rule - Approver has approved this request",
+    "stewardActivate": "Automation: Editable Rule - Steward has activated this request"
+  },
+  "rules": {
+    "R1": {
+      "id": "R1",
+      "type": "userAttribute",
+      "attributeType": "User ID",
+      "userAttribute": "userID",
+      "targetSection": "UNITSOFMEASURE",
+      "targetField": "alternativeUnit",
+      "sourceValue": "smdg.prestage@proton.me",
+      "targetSectionTitle": "Units of Measure",
+      "targetLabel": "Alternative Unit"
+    },
+    "R2": {
+      "id": "R2",
+      "type": "sourceField",
+      "sourceSection": "BASICGENERAL",
+      "sourceField": "division",
+      "targetSection": "BASICGENERAL",
+      "targetField": "productOldID",
+      "sourceValue": "*",
+      "acceptedAnyValue": true,
+      "sameSection": true,
+      "sourceTab": "Basic Data",
+      "sourceLabel": "Division",
+      "targetLabel": "Product Old ID",
+      "sourceSectionTitle": "Basic Data",
+      "targetSectionTitle": "Basic Data"
+    },
+    "R3": {
+      "id": "R3",
+      "type": "sourceField",
+      "sourceSection": "PLANTDATA",
+      "sourceField": "replacementPart",
+      "targetSection": "SHIPPINGDATATIMEINDAYS",
+      "targetField": "loadingGroup",
+      "sourceValue": "A",
+      "sourceTab": "Plant Data",
+      "sourceLabel": "Replacement Part",
+      "targetLabel": "Loading Group",
+      "sourceSectionTitle": "Plant Data",
+      "targetSectionTitle": "Shipping Data / Time in Days"
+    },
+    "R4": {
+      "id": "R4",
+      "type": "sourceField",
+      "sourceSection": "BASICDIMENSION",
+      "sourceField": "internationalArticleNumberCat",
+      "targetSection": "BASICGENERAL",
+      "targetField": "prodAllocDetnProcedure",
+      "sourceValue": "E5",
+      "sourceTab": "Basic Data",
+      "sourceLabel": "International Article Number Category",
+      "targetLabel": "Prod.Alloc.Detn.Procedure",
+      "sourceSectionTitle": "Dimensions/EANs",
+      "targetSectionTitle": "Basic Data"
+    },
+    "R5": {
+      "id": "R5",
+      "type": "sourceField",
+      "sourceSection": "BASICGENERAL",
+      "sourceField": "laboratoryOrDesignOffice",
+      "targetSection": "PLANTDATA",
+      "targetField": "plant",
+      "sourceValue": "1",
+      "sourceTab": "Basic Data",
+      "sourceLabel": "Laboratory/Design Office",
+      "targetLabel": "Plant",
+      "sourceSectionTitle": "Basic Data",
+      "targetSectionTitle": "Plant Data"
+    },
+    "R6": {
+      "id": "R6",
+      "type": "sourceField",
+      "sourceSection": "ACCOUNTINGANDCOSTING",
+      "sourceField": "valuationCategory",
+      "targetSection": "VALUATION",
+      "targetField": "priceUnitQty",
+      "sourceValue": "B",
+      "sourceTab": "Accounting",
+      "sourceLabel": "Valuation Category",
+      "targetLabel": "Price Unit Qty",
+      "sourceSectionTitle": "Accounting and Costing",
+      "targetSectionTitle": "Valuation"
+    },
+    "R7": {
+      "id": "R7",
+      "type": "sourceField",
+      "sourceSection": "BASICDIMENSION",
+      "sourceField": "materialVolume",
+      "targetSection": "BASICDIMENSION",
+      "targetField": "productStandardID",
+      "sourceValue": "1",
+      "sameSection": true,
+      "sourceTab": "Basic Data",
+      "sourceLabel": "Material Volume",
+      "targetLabel": "Product Standard ID",
+      "sourceSectionTitle": "Dimensions/EANs",
+      "targetSectionTitle": "Dimensions/EANs"
+    }
+  },
+  "testData": {
+    "er-e2e-mm-01": {
+      "description": "Admin: View/Search & List Utilities",
+      "priority": "Highest",
+      "templateName": "AUTO_MM01_EDITABLE_RULE",
+      "objectType": "Product",
+      "sourceCR": "CR0000024502",
+      "rules": ["R2"]
+    },
+    "er-e2e-mm-02": {
+      "description": "Admin: Create Rule based on Source Field (Dialog + Validation)",
+      "priority": "Highest",
+      "templateName": "AUTO_MM01_EDITABLE_RULE",
+      "objectType": "Product",
+      "sourceCR": "CR0000024502",
+      "rules": ["R3", "R4"],
+      "expectedErrors": {
+        "sameField": "Source Field and Target Field can't be identical within the same Section",
+        "requiredFields": "Please enter all required fields"
+      }
+    },
+    "er-e2e-mm-03": {
+      "description": "Admin: Only-One-Way-to-Create Validation (XOR)",
+      "priority": "Medium",
+      "templateName": "AUTO_MM01_EDITABLE_RULE",
+      "rules": ["R1", "R3"]
+    },
+    "er-e2e-mm-04": {
+      "description": "Admin: Create Rule based on User Attribute",
+      "priority": "High",
+      "templateName": "AUTO_MM01_EDITABLE_RULE",
+      "rules": ["R1"],
+      "knownIssues": {
+        "SSPD-9904": "User Group fix not confirmed"
+      }
+    },
+    "er-e2e-mm-05": {
+      "description": "Admin: Delete Editable Rule",
+      "priority": "Medium",
+      "templateName": "AUTO_MM01_EDITABLE_RULE",
+      "rules": ["R2"]
+    },
+    "er-e2e-mm-06": {
+      "description": "Main: Core Enable/Disable Logic + Update-State-Machine",
+      "priority": "Highest",
+      "templateName": "AUTO_MM01_EDITABLE_RULE",
+      "objectType": "Product",
+      "sourceCR": "CR0000024502",
+      "rules": ["R2"],
+      "knownIssues": {
+        "SSPD-9917": "Submission wrongly allowed after re-disabling modified target",
+        "SSPD-9919": "Error message not displayed when submission should be blocked"
+      }
+    },
+    "er-e2e-mm-07": {
+      "description": "Main: Structural Validation (Section Combinations)",
+      "priority": "Highest",
+      "templateName": "AUTO_MM01_EDITABLE_RULE",
+      "objectType": "Product",
+      "sourceCR": "CR0000024502",
+      "rules": ["R2", "R7"],
+      "knownIssues": {
+        "SSPD-9905": "Single source -> Repeatable target validated incorrectly",
+        "SSPD-9906": "Repeatable source -> Single target validated incorrectly"
+      }
+    },
+    "er-e2e-mm-08": {
+      "description": "Main: Rule Conflict Priority (vs Assignment Rule)",
+      "priority": "High",
+      "templateName": "AUTO_MM01_EDITABLE_RULE",
+      "objectType": "Product",
+      "sourceCR": "CR0000024502",
+      "rules": ["R6"]
+    },
+    "er-e2e-mm-09": {
+      "description": "Main: Master Data Integration (History & Update)",
+      "priority": "Medium",
+      "templateName": "AUTO_MM01_EDITABLE_RULE",
+      "objectType": "Product",
+      "sourceCR": "CR0000024502",
+      "rules": ["R2"]
+    },
+    "er-e2e-mm-10": {
+      "description": "Main: Multiple Rules on Same Target Field",
+      "priority": "High",
+      "templateName": "AUTO_MM01_EDITABLE_RULE",
+      "objectType": "Product",
+      "sourceCR": "CR0000024502",
+      "rules": ["R2", "R4", "R7"],
+      "knownIssues": {
+        "SSPD-9920": "Multiple rules same src+tgt: only latest is active",
+        "SSPD-9921": "Invalidating one of several wrongly re-enables target",
+        "SSPD-9928": "Field that is both source and target mishandled",
+        "ER-53": "Mandatory vs Editable precedence needs BA clarification"
+      }
+    },
+    "er-e2e-mm-11": {
+      "description": "Main: Scoping + Date-Type Source Field",
+      "priority": "Medium",
+      "templateName": "AUTO_MM01_EDITABLE_RULE",
+      "objectType": "Product",
+      "sourceCR": "CR0000024502",
+      "knownIssues": {
+        "SSPD-9982": "Cross-entry scoping blocked",
+        "SSPD-9983": "Date-type source field does not work"
+      }
+    },
+    "er-e2e-mm-12": {
+      "description": "Main: Rule Priority in Parallel Execution",
+      "priority": "Medium",
+      "templateName": "AUTO_MM01_EDITABLE_RULE",
+      "objectType": "Product",
+      "sourceCR": "CR0000024502",
+      "rules": ["R1", "R3"],
+      "knownIssues": {
+        "SSPD-9986": "User-Attribute vs Business-Table priority reversed"
+      }
+    },
+    "er-e2e-mm-13": {
+      "description": "Main: Value-Matching & User-Attribute Edge Cases",
+      "priority": "Medium",
+      "templateName": "AUTO_MM01_EDITABLE_RULE",
+      "objectType": "Product",
+      "sourceCR": "CR0000024502",
+      "rules": ["R2", "R3"],
+      "knownIssues": {
+        "SSPD-9980": "Two User Groups: rule becomes inactive for both",
+        "SSPD-9981": "Target section list incorrect with User Attribute",
+        "SSPD-9984": "Mixed Source-Field + User-Attribute rules mishandled"
+      }
+    },
+    "er-e2e-mm-14": {
+      "description": "Main: Checkbox Target Field",
+      "priority": "Low",
+      "templateName": "AUTO_MM01_EDITABLE_RULE",
+      "objectType": "Product",
+      "sourceCR": "CR0000024502",
+      "knownIssues": {
+        "Bug-check-05": "Checkbox target broken across ALL rule types (BA-confirmed)"
+      }
+    },
+    "er-e2e-mm-15": {
+      "description": "Main: Data Persistence & Post-Submit Display",
+      "priority": "High",
+      "templateName": "AUTO_MM01_EDITABLE_RULE",
+      "objectType": "Product",
+      "sourceCR": "CR0000024502",
+      "rules": ["R2"],
+      "knownIssues": {
+        "SSPD-10090": "Update form did not display saved data",
+        "SSPD-10737": "Stale rule application after condition unmet"
+      }
+    },
+    "er-e2e-mm-16": {
+      "description": "Enhancement: Structural Coverage Matrix + Accepted Any Value",
+      "priority": "Low",
+      "templateName": "AUTO_MM01_EDITABLE_RULE",
+      "objectType": "Product",
+      "sourceCR": "CR0000024502",
+      "knownIssues": {
+        "ER-71": "Multiple-Multiple sibling FAILS (5/6 pass)"
+      }
+    },
+    "er-e2e-mm-17": {
+      "description": "E2E Smoke: Full Cycle Admin -> Main -> Cleanup",
+      "priority": "Critical",
+      "templateName": "AUTO_MM01_EDITABLE_RULE",
+      "objectType": "Product",
+      "sourceCR": "CR0000024502",
+      "ruleId": "R7",
+      "header": {
+        "description": "ER-E2E-MM-17: E2E Smoke Editable Rule (MaterialVolume→ProductStandardID)",
+        "priority": "Medium"
+      }
+    }
+  }
+}

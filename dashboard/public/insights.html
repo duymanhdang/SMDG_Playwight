@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Insights — SimpleMDG Automation Hub</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/shared.css">
+<!-- v1.8.0 part 2 — same deliberate Chart.js CDN exception as
+     report-center.html (see the comment there); this page's pass-rate
+     trend chart gets the same upgrade for a consistent visual language.
+     Pinned version + computed SRI hash, `onerror` flags a fallback. -->
+<script
+  src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"
+  integrity="sha384-NrKB+u6Ts6AtkIhwPixiKTzgSKNblyhlk0Sohlgar9UHUBzai/sgnNNWWd291xqt"
+  crossorigin="anonymous"
+  onerror="window.__chartLibFailed = true;"
+></script>
+<style>
+.filters { display: flex; gap: 8px; align-items: center; }
+.filters select {
+  padding: 6px 10px; border: 1px solid var(--border-md); border-radius: var(--r);
+  background: var(--surface); color: var(--text); font-size: 12px; font-family: var(--sans);
+}
+.trend-tooltip { font-size: 10px; fill: var(--text-3); font-family: var(--mono); }
+.trend-line { fill: none; stroke: var(--blue); stroke-width: 2; }
+.trend-dot { fill: var(--blue); }
+.trend-axis { stroke: var(--border); stroke-width: 1; }
+
+.category-bar-wrap { display: flex; flex-direction: column; gap: 8px; }
+.category-row { display: flex; align-items: center; gap: 10px; font-size: 12px; }
+.category-name { width: 100px; flex-shrink: 0; color: var(--text-2); font-weight: 500; text-transform: capitalize; }
+.category-track { flex: 1; height: 10px; background: var(--surface-3); border-radius: 5px; overflow: hidden; }
+.category-fill { height: 100%; background: var(--red); border-radius: 5px; }
+.category-count { width: 28px; text-align: right; color: var(--text-3); font-family: var(--mono); }
+
+.rate-bad { color: var(--red); font-weight: 700; }
+.rate-mid { color: var(--orange); font-weight: 700; }
+.rate-low { color: var(--text-3); }
+.stale-bad { color: var(--red); }
+.stale-mid { color: var(--orange); }
+.stale-ok { color: var(--text-3); }
+
+/* v1.11.0 — KPI strip, attention cards, trend side panel, donut, cluster
+   cards, and Suite Health upgrades (badge/sparkline/trend arrow). */
+.attention-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-3); }
+@media (max-width: 1100px) { .attention-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 640px) { .attention-grid { grid-template-columns: 1fr; } }
+.attention-card {
+  border-radius: var(--r-lg); padding: var(--space-4); display: flex; flex-direction: column; gap: 6px;
+  background: var(--orange-bg); border: 1px solid var(--orange-bdr, var(--border));
+}
+.attention-card.ok { background: var(--green-bg); border-color: var(--green-bdr, var(--border)); }
+.attention-title { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: var(--text-sm); color: var(--text); }
+.attention-icon { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; background: var(--orange); color: #fff; }
+.attention-card.ok .attention-icon { background: var(--green); }
+.attention-body { font-size: var(--text-xs); color: var(--text-3); }
+.attention-link { font-size: var(--text-xs); font-weight: 600; color: var(--blue); text-decoration: none; margin-top: 2px; }
+.attention-link:hover { text-decoration: underline; }
+
+.trend-layout { display: grid; grid-template-columns: 1fr 220px; gap: var(--space-4); align-items: stretch; }
+@media (max-width: 900px) { .trend-layout { grid-template-columns: 1fr; } }
+.trend-side { display: flex; flex-direction: column; gap: 10px; padding: var(--space-4); border-left: 1px solid var(--border); }
+@media (max-width: 900px) { .trend-side { border-left: none; border-top: 1px solid var(--border); } }
+.trend-side-value { font-size: 28px; font-weight: 700; font-family: var(--mono); }
+.trend-side-label { font-size: var(--text-2xs); color: var(--text-4); }
+.trend-side-block { border-top: 1px solid var(--border); padding-top: 8px; margin-top: 4px; }
+.trend-side-block-label { font-size: var(--text-2xs); text-transform: uppercase; letter-spacing: .06em; color: var(--text-4); }
+.trend-side-block-val { font-size: var(--text-sm); font-weight: 600; color: var(--text); margin-top: 2px; }
+
+.cluster-card { display: flex; align-items: flex-start; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+.cluster-card:last-child { border-bottom: none; }
+.cluster-icon { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; background: var(--red-bg); color: var(--red); }
+.cluster-info { flex: 1; min-width: 0; }
+.cluster-title { font-weight: 600; font-size: var(--text-sm); color: var(--text); }
+.cluster-sub { font-size: var(--text-xs); color: var(--text-4); margin-top: 2px; overflow-wrap: anywhere; }
+.cluster-count { text-align: right; flex-shrink: 0; }
+.cluster-count-val { font-weight: 700; font-family: var(--mono); color: var(--text); }
+.cluster-count-pct { font-size: var(--text-2xs); color: var(--text-4); }
+
+.health-badge { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 10px; white-space: nowrap; }
+.health-badge.healthy { background: var(--green-bg); color: var(--green); }
+.health-badge.watch { background: var(--orange-bg); color: var(--orange); }
+.health-badge.at-risk { background: var(--red-bg); color: var(--red); }
+.health-badge.unknown { background: var(--gray-bg); color: var(--gray); }
+.trend-arrow.up { color: var(--green); }
+.trend-arrow.down { color: var(--red); }
+</style>
+</head>
+<body>
+<div id="shell-slot"></div>
+
+<div class="main">
+  <div class="topbar">
+    <div>
+      <div class="topbar-title">Insights</div>
+      <div class="topbar-sub">Pass rate trend, failure categories, flaky &amp; slow tests, suite health</div>
+    </div>
+  </div>
+
+  <div class="page-body">
+    <div class="panel">
+      <div class="panel-head">
+        <span class="panel-title">Filters</span>
+        <div class="filters">
+          <select id="fDays" onchange="loadAll()">
+            <option value="7">Last 7 days</option>
+            <option value="14" selected>Last 14 days</option>
+            <option value="30">Last 30 days</option>
+            <option value="90">Last 90 days</option>
+          </select>
+          <select id="fSuite" onchange="loadAll()"><option value="">All suites</option></select>
+        </div>
+      </div>
+    </div>
+
+    <div id="statGrid" class="stat-grid">
+      <div class="skeleton-stat"><div class="skeleton skeleton-line w-40"></div><div class="skeleton skeleton-line w-60"></div><div class="skeleton skeleton-line w-40"></div></div>
+      <div class="skeleton-stat"><div class="skeleton skeleton-line w-40"></div><div class="skeleton skeleton-line w-60"></div><div class="skeleton skeleton-line w-40"></div></div>
+      <div class="skeleton-stat"><div class="skeleton skeleton-line w-40"></div><div class="skeleton skeleton-line w-60"></div><div class="skeleton skeleton-line w-40"></div></div>
+    </div>
+
+    <div>
+      <div class="fh-top-label" style="margin-bottom:8px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-4)">What needs attention</div>
+      <div class="attention-grid" id="attentionGrid">
+        <div class="attention-card"><div class="spinner"></div></div>
+        <div class="attention-card"><div class="spinner"></div></div>
+        <div class="attention-card"><div class="spinner"></div></div>
+        <div class="attention-card"><div class="spinner"></div></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><span class="panel-title">Pass rate trend</span></div>
+      <div class="trend-layout">
+        <div class="panel-body" id="trendBody"><div class="skeleton skeleton-chart"></div></div>
+        <div class="trend-side" id="trendSide"><div class="spinner"></div></div>
+      </div>
+    </div>
+
+    <div class="charts-row" style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div class="panel">
+        <div class="panel-head"><span class="panel-title">Failure category breakdown</span></div>
+        <div class="panel-body" id="categoryBody"><div class="spinner"></div></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head">
+          <span class="panel-title">Top failure clusters</span>
+          <span style="font-size:11px;color:var(--text-4)">Grouped by normalized error signature</span>
+        </div>
+        <div class="panel-body" id="clustersBody" style="padding:4px 16px"><div class="spinner"></div></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <span class="panel-title">Suite health</span>
+        <span style="font-size:11px;color:var(--text-4)">Suites sorted by staleness (longest since last run first)</span>
+      </div>
+      <div class="panel-body" id="suiteHealthBody" style="padding:0"><div class="spinner"></div></div>
+      <div id="untestedSuitesNote" style="padding:0 16px 14px;font-size:11px;color:var(--text-4)"></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <span class="panel-title">Slow tests</span>
+        <span style="font-size:11px;color:var(--text-4)">Tests whose average duration increased &gt;15% recently</span>
+      </div>
+      <div class="panel-body" id="slowTestsBody" style="padding:0"><div class="spinner"></div></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <span class="panel-title">Flaky tests</span>
+        <span style="font-size:11px;color:var(--text-4)">Tests with both passing and failing results across recent runs</span>
+      </div>
+      <div class="panel-body" id="flakyBody" style="padding:0"><div class="spinner"></div></div>
+    </div>
+  </div>
+</div>
+
+<script src="/shared.js"></script>
+<script src="/deep-link.js"></script>
+<script>
+// Deep-link URL state (v1.5.0 item 2) — days/suite filters.
+const INSIGHTS_DEEP_LINK_SPEC = {
+  days:  { key: 'days',  default: '14' },
+  suite: { key: 'suite', default: '' },
+};
+function restoreFiltersFromUrl() {
+  const state = parseDeepLinkParams(new URLSearchParams(location.search), INSIGHTS_DEEP_LINK_SPEC);
+  if (state.days) $('fDays').value = state.days;
+  if (state.suite) $('fSuite').value = state.suite;
+}
+
+async function populateSuiteFilter() {
+  try {
+    const data = await fetch('/api/suites').then(r => r.json());
+    if (!data.ok) return;
+    const sel = $('fSuite');
+    data.suites.forEach(s => {
+      const opt = document.createElement('option');
+      opt.value = s.id; opt.textContent = s.short;
+      sel.appendChild(opt);
+    });
+  } catch (_) {}
+}
+
+function query() {
+  const qs = new URLSearchParams();
+  qs.set('days', $('fDays').value);
+  if ($('fSuite').value) qs.set('suite', $('fSuite').value);
+  syncDeepLinkState({ days: $('fDays').value, suite: $('fSuite').value }, INSIGHTS_DEEP_LINK_SPEC);
+  return qs;
+}
+function fmtDuration(ms) {
+  if (!ms || ms < 0) return '—';
+  const s = Math.round(ms / 1000);
+  return s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${s % 60}s`;
+}
+// Bugfix (v1.11.1) — this only escaped `'`, not `"`/`<`/`>`/`&`. Fine for the
+// old `onclick="fn('...')"` uses (single-quoted JS string), but real error
+// messages containing a literal `"` (e.g. `expected "Pending" to equal
+// "Approved"`) broke out of `title="..."` attributes, dumping raw text
+// (including ANSI codes from Playwright's colored step logs) into the page
+// — the "vỡ định dạng" bug on Top Failure Clusters. Matches results.html's
+// already-correct escapeAttr.
+function escapeAttr(str) {
+  return String(str).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+}
+function escapeHtml(str) {
+  return String(str == null ? '' : str).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+}
+function cssVar(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+
+// Bugfix (v1.11.1) — Playwright's verbose step logs embed ANSI color codes
+// (\x1B[2m / \x1B[22m etc.) and are multi-line; stripped/collapsed here so
+// the displayed snippet is one clean line instead of a garbled dump.
+function cleanErrorText(str) {
+  return String(str || '')
+    .replace(/\x1B\[[0-9;]*m/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// ─────────────────────────────────────────
+// v1.11.0 — KPI strip + "What needs attention" cards. One combined fetch
+// (overview + flaky + slow-tests + categories) feeds both, same
+// decoupled-from-the-table-widgets approach as Overview's AI Insights row —
+// small extra network calls, but keeps this section independent of whichever
+// order the per-widget loaders below happen to resolve in.
+// ─────────────────────────────────────────
+let lastInsightsOverview = null;
+
+const INSIGHTS_STAT_ICONS = {
+  passRate: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg>',
+  failed:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>',
+  flaky:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M4 4v5h5"/><path d="M20 20v-5h-5"/><path d="M5 9a7 7 0 0112-3M19 15a7 7 0 01-12 3"/></svg>',
+  slow:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>',
+  totalRuns:'<svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>',
+};
+function insightsDeltaHtml(value, positiveIsGood) {
+  if (value === null || value === undefined) return '<span class="stat-delta" style="color:var(--text-4)">No data for prior period</span>';
+  const good = positiveIsGood ? value >= 0 : value <= 0;
+  const arrow = value >= 0 ? '↑' : '↓';
+  return `<span class="stat-delta ${good ? 'up' : 'down'}">${arrow} ${Math.abs(value)}% vs prior period</span>`;
+}
+
+async function loadInsightsSummary() {
+  try {
+    const [overview, flaky, slow, categories] = await Promise.all([
+      fetch(`/api/reports/overview?${query()}`).then(r => r.json()),
+      fetch(`/api/flaky?${query()}`).then(r => r.json()),
+      fetch(`/api/insights/slow-tests?${query()}`).then(r => r.json()),
+      fetch(`/api/insights/categories?${query()}`).then(r => r.json()),
+    ]);
+    lastInsightsOverview = overview.ok ? overview : null;
+    const flakyCount = flaky.ok ? flaky.tests.length : 0;
+    const slowCount = slow.ok ? slow.tests.length : 0;
+    renderStatGrid(overview.ok ? overview : null, flakyCount, slowCount);
+    renderAttentionCards(overview.ok ? overview : null, categories.ok ? categories.breakdown : [], flakyCount, slowCount);
+    renderTrendSide();
+  } catch (err) {
+    $('statGrid').innerHTML = `<div class="empty">⚠ ${err.message}</div>`;
+  }
+}
+
+function renderStatGrid(overview, flakyCount, slowCount) {
+  const deltas = (overview && overview.deltas) || {};
+  const cards = [
+    { key: 'passRate',  label: 'Pass rate',  value: overview && overview.passRate !== null ? overview.passRate + '%' : '—', color: 'var(--green)', delta: insightsDeltaHtml(deltas.passRate, true) },
+    { key: 'failed',    label: 'Failures',   value: overview ? overview.failed : '—', color: 'var(--red)', delta: insightsDeltaHtml(deltas.failed, false) },
+    { key: 'flaky',     label: 'Flaky tests',value: flakyCount, color: 'var(--orange)', delta: '<span class="stat-delta" style="color:var(--text-4)">count only — no daily trend</span>' },
+    { key: 'slow',      label: 'Slow tests', value: slowCount, color: 'var(--blue)', delta: '<span class="stat-delta" style="color:var(--text-4)">count only — no daily trend</span>' },
+    { key: 'totalRuns', label: 'Total runs', value: overview ? overview.totalRuns : '—', color: 'var(--blue)', delta: insightsDeltaHtml(deltas.totalRuns, true) },
+  ];
+  $('statGrid').innerHTML = cards.map(c => `
+    <div class="stat-card">
+      <div class="stat-icon-row">
+        <div class="stat-icon" style="--stat-color:${c.color}">${INSIGHTS_STAT_ICONS[c.key]}</div>
+        <div class="stat-label">${c.label}</div>
+      </div>
+      <div class="stat-value">${c.value}</div>
+      ${c.delta}
+    </div>`).join('');
+}
+
+function renderAttentionCards(overview, categories, flakyCount, slowCount) {
+  const cards = [];
+
+  // Pass rate dropped
+  const d = overview && overview.deltas ? overview.deltas.passRate : null;
+  if (d !== null && d < 0) {
+    const worstSuite = (overview.suiteBreakdown || []).slice().sort((a, b) => (a.passRate ?? 100) - (b.passRate ?? 100))[0];
+    cards.push({
+      ok: false, title: 'Pass rate dropped',
+      body: `Pass rate dropped ${Math.abs(d)}% vs the prior period.${worstSuite ? ` ${escapeHtml(worstSuite.suiteName)} is at ${worstSuite.passRate ?? '—'}%.` : ''}`,
+      linkText: 'View report', linkHref: '/report-center.html',
+    });
+  } else {
+    cards.push({ ok: true, title: 'Pass rate stable', body: 'No drop vs the prior period.', linkText: 'View report', linkHref: '/report-center.html' });
+  }
+
+  // Failures
+  const topCategory = (categories || []).slice().sort((a, b) => b.count - a.count)[0];
+  const totalFailures = overview ? overview.failed : 0;
+  cards.push(totalFailures > 0 ? {
+    ok: false, title: `${totalFailures} failure${totalFailures === 1 ? '' : 's'} detected`,
+    body: topCategory ? `${topCategory.count} related to ${escapeHtml(topCategory.category)} errors.` : 'Investigate the failing tests.',
+    linkText: 'Investigate failures', linkHref: '#clustersBody',
+  } : { ok: true, title: 'No failures', body: 'No failing tests in this time range. 🎉', linkText: 'View report', linkHref: '/report-center.html' });
+
+  // Flaky
+  cards.push(flakyCount > 0 ? {
+    ok: false, title: `${flakyCount} flaky test${flakyCount === 1 ? '' : 's'}`,
+    body: 'Tests show inconsistent results across recent runs.',
+    linkText: 'Review flaky tests', linkHref: '#flakyBody',
+  } : { ok: true, title: 'No flaky tests', body: 'No inconsistent tests detected.', linkText: 'Review flaky tests', linkHref: '#flakyBody' });
+
+  // Slow
+  cards.push(slowCount > 0 ? {
+    ok: false, title: `${slowCount} test${slowCount === 1 ? '' : 's'} getting slower`,
+    body: 'Average duration increased &gt;15% vs the prior half of this range.',
+    linkText: 'View slow tests', linkHref: '#slowTestsBody',
+  } : { ok: true, title: 'No slowdowns', body: 'No tests trending slower.', linkText: 'View slow tests', linkHref: '#slowTestsBody' });
+
+  $('attentionGrid').innerHTML = cards.map(c => `
+    <div class="attention-card ${c.ok ? 'ok' : ''}">
+      <div class="attention-title">
+        <span class="attention-icon">${c.ok ? '✓' : '!'}</span>
+        <span>${c.title}</span>
+      </div>
+      <div class="attention-body">${c.body}</div>
+      <a class="attention-link" href="${c.linkHref}" onclick="${c.linkHref.startsWith('#') ? `document.querySelector('${c.linkHref}')?.scrollIntoView({behavior:'smooth'});return false;` : ''}">${c.linkText} →</a>
+    </div>`).join('');
+}
+
+// Pass Rate Trend side panel — current value, delta, best/worst day.
+// Best/worst are computed client-side from the same points array the chart
+// already has (lastTrendPoints, set in renderTrend() below) — no new endpoint.
+function renderTrendSide() {
+  const side = $('trendSide');
+  if (!side) return;
+  if (!lastTrendPoints || !lastTrendPoints.length) { side.innerHTML = '<div class="empty">No data yet.</div>'; return; }
+  const withRate = lastTrendPoints.filter(p => p.passRate !== null);
+  if (!withRate.length) { side.innerHTML = '<div class="empty">No data yet.</div>'; return; }
+  const best = withRate.reduce((a, b) => (b.passRate > a.passRate ? b : a));
+  const worst = withRate.reduce((a, b) => (b.passRate < a.passRate ? b : a));
+  const overview = lastInsightsOverview;
+  const current = overview && overview.passRate !== null ? overview.passRate + '%' : withRate[withRate.length - 1].passRate + '%';
+  const delta = overview && overview.deltas ? overview.deltas.passRate : null;
+
+  side.innerHTML = `
+    <div>
+      <div class="trend-side-value">${current}</div>
+      <div class="trend-side-label">Pass rate in selected period</div>
+      ${delta !== null ? insightsDeltaHtml(delta, true) : ''}
+    </div>
+    <div class="trend-side-block">
+      <div class="trend-side-block-label">Best day</div>
+      <div class="trend-side-block-val">${best.date} — ${best.passRate}%</div>
+    </div>
+    <div class="trend-side-block">
+      <div class="trend-side-block-label">Worst day</div>
+      <div class="trend-side-block-val">${worst.date} — ${worst.passRate}%</div>
+    </div>`;
+}
+
+async function loadTrend() {
+  try {
+    const data = await fetch(`/api/insights/trend?${query()}`).then(r => r.json());
+    if (!data.ok) throw new Error(data.error);
+    renderTrend(data.points);
+  } catch (err) {
+    $('trendBody').innerHTML = `<div class="empty">⚠ ${err.message}</div>`;
+  }
+}
+
+// v1.8.0 part 2 — same Chart.js migration as report-center.html's trend
+// chart (see that file's comment for the full rationale). Kept module-scope
+// so it can be destroyed/rebuilt on theme toggle.
+let insightsTrendChart = null;
+let lastTrendPoints = null;
+
+function chartsAvailable() {
+  return !window.__chartLibFailed && typeof window.Chart !== 'undefined';
+}
+
+function renderTrend(points) {
+  lastTrendPoints = points;
+  renderTrendSide();
+  if (!points.length) {
+    $('trendBody').innerHTML = '<div class="empty">No finished runs in this time range yet.</div>';
+    return;
+  }
+  if (!chartsAvailable()) {
+    $('trendBody').innerHTML = '<div class="empty">⚠ Charts unavailable offline — the Chart.js library could not be loaded from its CDN.</div>';
+    return;
+  }
+
+  $('trendBody').innerHTML = '<canvas id="insightsTrendCanvas" height="110"></canvas>';
+  const ctx = $('insightsTrendCanvas').getContext('2d');
+  const blue = cssVar('--blue');
+  const gradient = ctx.createLinearGradient(0, 0, 0, 110);
+  gradient.addColorStop(0, `color-mix(in oklch, ${blue} 35%, transparent)`);
+  gradient.addColorStop(1, `color-mix(in oklch, ${blue} 0%, transparent)`);
+
+  if (insightsTrendChart) insightsTrendChart.destroy();
+  insightsTrendChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: points.map(p => p.date.slice(5)),
+      datasets: [{
+        label: 'Pass rate',
+        data: points.map(p => p.passRate),
+        borderColor: blue,
+        backgroundColor: gradient,
+        fill: true,
+        tension: 0.35,
+        pointRadius: 3,
+        pointHoverRadius: 5,
+        pointBackgroundColor: blue,
+        borderWidth: 2,
+      }],
+    },
+    options: {
+      responsive: true,
+      animation: { duration: 500, easing: 'easeOutCubic' },
+      scales: {
+        y: { min: 0, max: 100, ticks: { callback: v => v + '%', color: cssVar('--text-3') }, grid: { color: cssVar('--border') } },
+        x: { ticks: { color: cssVar('--text-3') }, grid: { display: false } },
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: cssVar('--surface-2'), titleColor: cssVar('--text'), bodyColor: cssVar('--text-2'),
+          borderColor: cssVar('--border-md'), borderWidth: 1, padding: 10, cornerRadius: 8, displayColors: false,
+          callbacks: {
+            title: (items) => points[items[0].dataIndex].date,
+            label: (item) => {
+              const p = points[item.dataIndex];
+              return `${p.passRate ?? '—'}% pass rate, ${p.runs} run(s)`;
+            },
+          },
+        },
+      },
+    },
+  });
+}
+
+document.addEventListener('mdg:themechange', () => {
+  if (lastTrendPoints) renderTrend(lastTrendPoints);
+  if (lastCategoryBreakdown) renderCategories(lastCategoryBreakdown);
+  if (lastSuiteHealth) renderSuiteHealth(lastSuiteHealth);
+});
+
+let lastCategoryBreakdown = null;
+async function loadCategories() {
+  try {
+    const data = await fetch(`/api/insights/categories?${query()}`).then(r => r.json());
+    if (!data.ok) throw new Error(data.error);
+    lastCategoryBreakdown = data.breakdown;
+    renderCategories(data.breakdown);
+  } catch (err) {
+    $('categoryBody').innerHTML = `<div class="empty">⚠ ${err.message}</div>`;
+  }
+}
+// v1.11.0 — donut instead of horizontal bars, same Chart.js pattern as
+// Report Center's Result Breakdown donut. Category colors cycle through the
+// shared 7-status palette (categories are open-ended text, not a fixed enum).
+const CATEGORY_COLOR_VARS = ['--red', '--orange', '--amber', '--gray', '--purple', '--blue'];
+let categoryChart = null;
+function renderCategories(breakdown) {
+  if (!breakdown.length) { $('categoryBody').innerHTML = '<div class="empty">No failures recorded in this time range. 🎉</div>'; return; }
+  if (!chartsAvailable()) {
+    $('categoryBody').innerHTML = '<div class="empty">⚠ Charts unavailable offline — the Chart.js library could not be loaded from its CDN.</div>';
+    return;
+  }
+  const total = breakdown.reduce((a, b) => a + b.count, 0);
+  const legend = breakdown.map((b, i) => `
+    <div class="donut-legend-row">
+      <span class="donut-swatch" style="background:var(${CATEGORY_COLOR_VARS[i % CATEGORY_COLOR_VARS.length]})"></span>
+      <span style="text-transform:capitalize">${escapeHtml(b.category)}</span>
+      <span style="color:var(--text-3);font-family:var(--mono);margin-left:auto">${b.count} (${Math.round(b.count / total * 100)}%)</span>
+    </div>`).join('');
+
+  $('categoryBody').innerHTML = `
+    <div class="donut-wrap" style="display:flex;align-items:center;gap:18px;flex-wrap:wrap">
+      <div style="position:relative;width:160px;height:160px">
+        <canvas id="categoryCanvas" width="160" height="160"></canvas>
+        <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none">
+          <div style="font-family:var(--mono);font-size:18px;font-weight:700;color:var(--text)">${total}</div>
+          <div style="font-size:10px;color:var(--text-4)">failures</div>
+        </div>
+      </div>
+      <div class="donut-legend" style="display:flex;flex-direction:column;gap:6px;font-size:var(--text-sm)">${legend}</div>
+    </div>`;
+
+  const ctx = $('categoryCanvas').getContext('2d');
+  if (categoryChart) categoryChart.destroy();
+  categoryChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: breakdown.map(b => b.category),
+      datasets: [{
+        data: breakdown.map(b => b.count),
+        backgroundColor: breakdown.map((b, i) => cssVar(CATEGORY_COLOR_VARS[i % CATEGORY_COLOR_VARS.length])),
+        borderColor: cssVar('--surface'),
+        borderWidth: 2,
+      }],
+    },
+    options: {
+      responsive: false,
+      cutout: '68%',
+      animation: { animateRotate: true, animateScale: true, duration: 500, easing: 'easeOutCubic' },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: cssVar('--surface-2'), titleColor: cssVar('--text'), bodyColor: cssVar('--text-2'),
+          borderColor: cssVar('--border-md'), borderWidth: 1, padding: 10, cornerRadius: 8, displayColors: true,
+        },
+      },
+    },
+  });
+}
+
+let lastSuiteHealth = null;
+async function loadSuiteHealth() {
+  try {
+    const data = await fetch(`/api/insights/suite-health?days=${$('fDays').value}`).then(r => r.json());
+    if (!data.ok) throw new Error(data.error);
+    lastSuiteHealth = data.suites;
+    renderSuiteHealth(data.suites);
+    renderUntestedSuitesNote(data.untestedSuites || []);
+  } catch (err) {
+    $('suiteHealthBody').innerHTML = `<div class="empty">⚠ ${err.message}</div>`;
+  }
+}
+function staleClass(days) {
+  if (days === null) return 'stale-bad';
+  if (days >= 14) return 'stale-bad';
+  if (days >= 7) return 'stale-mid';
+  return 'stale-ok';
+}
+
+// v1.11.0 — health badge (Healthy/Watch/At risk), a tiny inline sparkline
+// (reuses Overview's sparklineSvg-style polyline, drawn inline here since
+// this page doesn't load count-up.js/Overview's helper), and a trend arrow.
+// Thresholds are a simple, documented heuristic — not a tuned ML score.
+function suiteHealthLabel(s) {
+  if (s.lastRunTime === null) return { cls: 'unknown', label: 'Untested' };
+  if (s.passRate === null) return { cls: 'unknown', label: 'Unknown' };
+  if (s.passRate >= 90 && (s.staleDays ?? 0) < 14) return { cls: 'healthy', label: 'Healthy' };
+  if (s.passRate >= 70) return { cls: 'watch', label: 'Watch' };
+  return { cls: 'at-risk', label: 'At risk' };
+}
+function suiteSparklineSvg(trend) {
+  const values = (trend || []).map(t => t.passRate).filter(v => v !== null);
+  if (values.length < 2) return '';
+  const W = 60, H = 20;
+  const max = Math.max(...values, 1), min = Math.min(...values, 0);
+  const range = Math.max(max - min, 1);
+  const step = W / (values.length - 1);
+  const pts = values.map((v, i) => `${(i * step).toFixed(1)},${(H - ((v - min) / range) * H).toFixed(1)}`).join(' ');
+  const color = values[values.length - 1] >= values[0] ? cssVar('--green') : cssVar('--red');
+  return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.6"/></svg>`;
+}
+function renderSuiteHealth(suites) {
+  if (!suites.length) { $('suiteHealthBody').innerHTML = '<div class="empty">No suites found.</div>'; return; }
+  $('suiteHealthBody').innerHTML = `<table>
+    <thead><tr>
+      <th style="width:20%">Suite</th><th style="width:8%">Specs</th><th style="width:14%">Last run</th>
+      <th style="width:12%">Pass rate</th><th style="width:10%">Failures</th><th style="width:8%">Flaky</th>
+      <th style="width:14%">Trend</th><th style="width:14%">Health</th>
+    </tr></thead>
+    <tbody>
+      ${suites.map(s => {
+        const health = suiteHealthLabel(s);
+        const arrow = s.trendDirection ? `<span class="trend-arrow ${s.trendDirection}">${s.trendDirection === 'up' ? '↑' : '↓'}</span>` : '';
+        return `
+        <tr>
+          <td class="col-mono">${escapeHtml(s.suiteName)}</td>
+          <td>${s.specCount}</td>
+          <td class="${staleClass(s.staleDays)}">${s.staleDays === null ? 'Never run' : s.staleDays === 0 ? 'Today' : `${s.staleDays}d ago`}</td>
+          <td>${s.passRate === null ? '—' : `${s.passRate}% ${arrow}`}</td>
+          <td class="col-mono">${s.failures ?? 0}</td>
+          <td class="col-mono">${s.flaky ?? 0}</td>
+          <td>${suiteSparklineSvg(s.trend) || '<span style="color:var(--text-4)">—</span>'}</td>
+          <td><span class="health-badge ${health.cls}">${health.label}</span></td>
+        </tr>`;
+      }).join('')}
+    </tbody>
+  </table>`;
+}
+function renderUntestedSuitesNote(untestedSuites) {
+  const note = $('untestedSuitesNote');
+  if (!note) return;
+  note.textContent = untestedSuites.length ? `${untestedSuites.length} suite${untestedSuites.length === 1 ? '' : 's'} have never been executed: ${untestedSuites.join(', ')}` : '';
+}
+
+async function loadSlowTests() {
+  try {
+    const data = await fetch(`/api/insights/slow-tests?${query()}`).then(r => r.json());
+    if (!data.ok) throw new Error(data.error);
+    renderSlowTests(data.tests);
+  } catch (err) {
+    $('slowTestsBody').innerHTML = `<div class="empty">⚠ ${err.message}</div>`;
+  }
+}
+function renderSlowTests(tests) {
+  if (!tests.length) { $('slowTestsBody').innerHTML = '<div class="empty">No tests trending slower in this time range.</div>'; return; }
+  $('slowTestsBody').innerHTML = `<table>
+    <thead><tr>
+      <th style="width:38%">Test</th><th style="width:16%">Suite</th><th style="width:14%">Before</th><th style="width:14%">Now</th><th style="width:18%;text-align:right">Change</th>
+    </tr></thead>
+    <tbody>
+      ${tests.map(t => `
+        <tr>
+          <td class="col-mono">${t.title}</td>
+          <td>${t.suiteName}</td>
+          <td class="col-mono">${fmtDuration(t.earlyAvgMs)}</td>
+          <td class="col-mono">${fmtDuration(t.lateAvgMs)}</td>
+          <td style="text-align:right" class="rate-mid">+${t.changePct}%</td>
+        </tr>`).join('')}
+    </tbody>
+  </table>`;
+}
+
+async function loadClusters() {
+  try {
+    const data = await fetch(`/api/insights/failure-clusters?${query()}`).then(r => r.json());
+    if (!data.ok) throw new Error(data.error);
+    renderClusters(data.clusters);
+  } catch (err) {
+    $('clustersBody').innerHTML = `<div class="empty">⚠ ${err.message}</div>`;
+  }
+}
+// v1.11.0 — card list instead of a table, same data (top 25 clusters by
+// count, error/ids/timestamps already normalized server-side).
+function renderClusters(clusters) {
+  if (!clusters.length) { $('clustersBody').innerHTML = '<div class="empty">No failure clusters in this time range. 🎉</div>'; return; }
+  const total = clusters.reduce((a, c) => a + c.count, 0);
+  $('clustersBody').innerHTML = clusters.slice(0, 25).map(c => {
+    const cleanError = cleanErrorText(c.representativeError);
+    return `
+    <div class="cluster-card">
+      <div class="cluster-icon">!</div>
+      <div class="cluster-info">
+        <div class="cluster-title" style="text-transform:capitalize">${escapeHtml(c.category)}</div>
+        <div class="cluster-sub" title="${escapeAttr(cleanError)}">${escapeHtml(cleanError.slice(0, 140))}${cleanError.length > 140 ? '…' : ''}</div>
+        <div class="cluster-sub">${c.affectedTests.slice(0, 3).map(t => escapeHtml(t)).join(', ')}${c.affectedTests.length > 3 ? ` +${c.affectedTests.length - 3} more` : ''}</div>
+      </div>
+      <div class="cluster-count">
+        <div class="cluster-count-val">${c.count}</div>
+        <div class="cluster-count-pct">failure${c.count === 1 ? '' : 's'}${total > 0 ? ` · ${Math.round(c.count / total * 100)}%` : ''}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function loadFlaky() {
+  try {
+    const data = await fetch(`/api/flaky?${query()}`).then(r => r.json());
+    if (!data.ok) throw new Error(data.error);
+    renderFlaky(data.tests);
+  } catch (err) {
+    $('flakyBody').innerHTML = `<div class="empty">⚠ ${err.message}</div>`;
+  }
+}
+function rateClass(rate) {
+  if (rate >= 50) return 'rate-bad';
+  if (rate >= 20) return 'rate-mid';
+  return 'rate-low';
+}
+function renderFlaky(tests) {
+  if (!tests.length) { $('flakyBody').innerHTML = '<div class="empty">No flaky tests detected in this time range.</div>'; return; }
+  $('flakyBody').innerHTML = `<table>
+    <thead><tr>
+      <th style="width:38%">Test</th><th style="width:16%">Suite</th><th style="width:14%">Failure rate</th>
+      <th style="width:16%">Runs (fail/total)</th><th style="width:16%;text-align:right">Action</th>
+    </tr></thead>
+    <tbody>
+      ${tests.map(t => `
+        <tr>
+          <td class="col-mono">${t.title}</td>
+          <td>${t.suiteName}</td>
+          <td class="${rateClass(t.failureRate)}">${t.failureRate}%</td>
+          <td class="col-mono">${t.failedRuns}/${t.totalRuns}</td>
+          <td style="text-align:right">
+            <button class="btn-tiny ${t.quarantined ? 'quarantined' : ''}" onclick="toggleQuarantine('${escapeAttr(t.suiteName)}','${escapeAttr(t.title)}', ${t.quarantined})">
+              ${t.quarantined ? 'Quarantined' : 'Quarantine'}
+            </button>
+          </td>
+        </tr>`).join('')}
+    </tbody>
+  </table>`;
+}
+
+async function toggleQuarantine(suiteName, title, isQuarantined) {
+  try {
+    let body = { suiteName, title };
+    if (!isQuarantined) {
+      // §F3 — quarantine now requires a reason + requestedBy (governance,
+      // not a silent one-click skip). expiresInDays defaults to 14 (max 60)
+      // server-side if left blank.
+      const reason = prompt('Reason for quarantining this test (required):');
+      if (!reason || !reason.trim()) return;
+      const requestedBy = prompt('Your name (required):');
+      if (!requestedBy || !requestedBy.trim()) return;
+      const expiresInDays = prompt('Expires in how many days? (1-60, default 14)', '14');
+      body = { suiteName, title, reason, requestedBy, expiresInDays: expiresInDays ? Number(expiresInDays) : undefined };
+    }
+    const endpoint = isQuarantined ? '/api/flaky/release' : '/api/flaky/quarantine';
+    const data = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(r => r.json());
+    if (!data.ok) throw new Error(data.error);
+    loadFlaky();
+  } catch (err) {
+    showToast('⚠ ' + err.message);
+  }
+}
+
+function loadAll() {
+  ['trendBody', 'categoryBody', 'suiteHealthBody', 'slowTestsBody', 'clustersBody', 'flakyBody'].forEach(id => $(id).innerHTML = '<div class="spinner"></div>');
+  loadInsightsSummary();
+  loadTrend();
+  loadCategories();
+  loadSuiteHealth();
+  loadSlowTests();
+  loadClusters();
+  loadFlaky();
+}
+
+function onShellReady() {
+  populateSuiteFilter().then(() => {
+    restoreFiltersFromUrl();
+    loadAll();
+  });
+}
+initShell('insights');
+</script>
+</body>
+</html>

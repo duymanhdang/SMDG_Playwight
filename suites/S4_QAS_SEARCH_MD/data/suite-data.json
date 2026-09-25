@@ -1,0 +1,346 @@
+{
+  "suite": "S4_QAS_SEARCH_MD",
+  "description": "SimpleMDG S4 QAS - Search Master Data Test Suite",
+  "environment": "QAS",
+  "baseUrl": "https://smdg-s4-qas-simplemdg-web.cfapps.br10.hana.ondemand.com",
+
+  "testData": {
+    "srch-sm-01": {
+      "description": "[SEARCH MASTER DATA] Happy Path - Admin config search method → Main search",
+      "priority": "HIGH",
+      "reason": "New Product",
+      "templateName": "AUTO_MM01_SEARCH_MD",
+      "methodName": "Auto_Search_TC01",
+      "methodId": "SRCHTC01",
+      "fieldConfigs": [
+        { "businessTable": "Product", "fieldName": "product", "controlType": "TEXTBOX" },
+        { "businessTable": "ProductDescription", "fieldName": "productDescription", "controlType": "TEXTBOX" }
+      ],
+      "resultFields": ["product", "productDescription", "objectID"],
+      "searchValue": "90785",
+      "searchFieldLabels": ["Product", "Product Description"],
+      "fieldOperators": [
+        { "label": "Product", "operators": ["Equal", "Not Equal", "Contain", "Start With", "End With", "Fuzzy"] },
+        { "label": "Product Description", "operators": ["Equal", "Not Equal", "Contain", "Start With", "End With", "Fuzzy"] }
+      ],
+      "mainVerifyColumns": [
+        { "label": "Product", "nth": 1 },
+        { "label": "Product Description", "nth": 1 },
+        { "label": "ObjectID" }
+      ]
+    },
+
+    "srch-sm-02": {
+      "description": "[SEARCH MASTER DATA] Negative Search - Search with nonexistent value returns no results",
+      "priority": "HIGH",
+      "reason": "Validation - Empty results handling",
+      "templateName": "AUTO_MM01_SEARCH_MD",
+      "methodName": "Auto_Search_TC02",
+      "methodId": "SRCHTC02",
+      "fieldConfigs": [
+        { "businessTable": "Product", "fieldName": "product", "controlType": "TEXTBOX" },
+        { "businessTable": "ProductDescription", "fieldName": "productDescription", "controlType": "TEXTBOX" }
+      ],
+      "resultFields": ["product", "productDescription", "objectID"],
+      "searchValue": "NONEXISTENT999999",
+      "noResultsText": "No data",
+      "searchFieldLabels": ["Product", "Product Description"],
+      "fieldOperators": [
+        { "label": "Product", "operators": ["Equal", "Not Equal", "Contain", "Start With", "End With", "Fuzzy"] },
+        { "label": "Product Description", "operators": ["Equal", "Not Equal", "Contain", "Start With", "End With", "Fuzzy"] }
+      ]
+    },
+
+    "srch-sm-03": {
+      "description": "[SEARCH MASTER DATA] No Result Fields - Search method without result fields configured",
+      "priority": "HIGH",
+      "reason": "Validation - Missing result fields",
+      "templateName": "AUTO_MM01_SEARCH_MD",
+      "methodName": "Auto_Search_TC03",
+      "methodId": "SRCHTC03",
+      "fieldConfigs": [
+        { "businessTable": "Product", "fieldName": "product", "controlType": "TEXTBOX" },
+        { "businessTable": "ProductDescription", "fieldName": "productDescription", "controlType": "TEXTBOX" }
+      ],
+      "resultFields": [],
+      "searchValue": "90785",
+      "searchFieldLabels": ["Product", "Product Description"],
+      "expectedStatus": "ACTIVATED",
+      "fieldOperators": [
+        { "label": "Product", "operators": ["Equal", "Not Equal", "Contain", "Start With", "End With", "Fuzzy"] },
+        { "label": "Product Description", "operators": ["Equal", "Not Equal", "Contain", "Start With", "End With", "Fuzzy"] }
+      ]
+    },
+
+    "srch-sm-04": {
+      "description": "[SEARCH MASTER DATA] Add 3rd Field - Add ProductPlant field to existing method",
+      "priority": "HIGH",
+      "reason": "Validation - Add field to existing method",
+      "templateName": "AUTO_MM01_SEARCH_MD",
+      "methodName": "Auto_Search_TC04",
+      "methodId": "SRCHTC04",
+      "fieldConfigs": [
+        { "businessTable": "Product", "fieldName": "product", "controlType": "TEXTBOX" },
+        { "businessTable": "ProductDescription", "fieldName": "productDescription", "controlType": "TEXTBOX" },
+        { "businessTable": "ProductPlant", "fieldName": "plant", "controlType": "TEXTBOX" }
+      ],
+      "resultFields": ["product", "productDescription", "objectID"],
+      "extraResultField": "plant",
+      "searchValue": "90785",
+      "searchFieldLabels": ["Product", "Product Description", "Plant"],
+      "fieldOperators": [
+        { "label": "Product", "operators": ["Equal", "Not Equal", "Contain", "Start With", "End With", "Fuzzy"] },
+        { "label": "Product Description", "operators": ["Equal", "Not Equal", "Contain", "Start With", "End With", "Fuzzy"] },
+        { "label": "Plant", "operators": ["Equal", "Not Equal", "Contain", "Start With", "End With", "Fuzzy"] }
+      ],
+      "mainVerifyColumns": [
+        { "label": "Product", "nth": 2 },
+        { "label": "Product Description", "nth": 1 },
+        { "label": "ObjectID" },
+        { "label": "Plant" }
+      ]
+    },
+
+    "srch-sm-06": {
+      "description": "[SEARCH MASTER DATA] F4 Control Type - Configure productType with F4 control and search via value help",
+      "priority": "HIGH",
+      "reason": "Validation - F4 control type configuration and search",
+      "templateName": "AUTO_MM01_SEARCH_MD",
+      "methodName": "Auto_Search_TC06",
+      "methodId": "SRCHTC06",
+      "fieldConfigs": [
+        { "businessTable": "Product", "fieldName": "productType", "controlType": "TEXTBOX" },
+        { "businessTable": "ProductDescription", "fieldName": "productDescription", "controlType": "TEXTBOX" }
+      ],
+      "editFieldConfigs": [
+        { "fieldName": "productType", "newControlType": "F4" }
+      ],
+      "f4SourceData": {
+        "entity": "MDProductType",
+        "keyField": "productType"
+      },
+      "resultFields": ["productType", "productDescription", "objectID"],
+      "f4SearchValue": "FERT",
+      "searchFieldLabels": ["Product Type", "Product Description"],
+      "mainVerifyColumns": [
+        { "label": "Product Type", "nth": 1 },
+        { "label": "Product Description", "nth": 1 },
+        { "label": "ObjectID" }
+      ]
+    },
+
+    "srch-sm-07": {
+      "description": "[SEARCH MASTER DATA] DROPDOWN Control Type - Configure language with DROPDOWN control and search by selecting EN",
+      "priority": "HIGH",
+      "reason": "Validation - DROPDOWN control type configuration and search",
+      "templateName": "AUTO_MM01_SEARCH_MD",
+      "methodName": "Auto_Search_TC07",
+      "methodId": "SRCHTC07",
+      "fieldConfigs": [
+        { "businessTable": "ProductDescription", "fieldName": "language", "controlType": "TEXTBOX" },
+        { "businessTable": "ProductDescription", "fieldName": "productDescription", "controlType": "TEXTBOX" }
+      ],
+      "editFieldConfigs": [
+        { "fieldName": "language", "newControlType": "DROPDOWN" }
+      ],
+      "dropdownSourceData": {
+        "entity": "MDLanguage",
+        "keyField": "languageID",
+        "displayFields": ["languageID"],
+        "visibleFields": ["languageID", "description", "Allow Show Description"]
+      },
+      "resultFields": ["productType", "productDescription", "objectID"],
+      "searchFieldLabels": ["Language", "Product Description"],
+      "dropdownSearchValue": "EN",
+      "mainVerifyColumns": [
+        { "label": "Product Type" },
+        { "label": "Product Description" },
+        { "label": "ObjectID" }
+      ]
+    },
+
+    "srch-sm-08": {
+      "description": "[SEARCH MASTER DATA] Remove Fields - Add 3 fields then remove 1 field",
+      "priority": "HIGH",
+      "reason": "Validation - Remove fields functionality",
+      "templateName": "AUTO_MM01_SEARCH_MD",
+      "methodName": "Auto_Search_TC08",
+      "methodId": "SRCHTC08",
+      "fieldConfigs": [
+        { "businessTable": "Product", "fieldName": "product", "controlType": "TEXTBOX" },
+        { "businessTable": "ProductDescription", "fieldName": "productDescription", "controlType": "TEXTBOX" },
+        { "businessTable": "ProductPlant", "fieldName": "plant", "controlType": "TEXTBOX" }
+      ],
+      "removeFields": ["plant"],
+      "resultFields": ["product", "productDescription", "objectID"],
+      "searchValue": "90785",
+      "searchFieldLabels": ["Product", "Product Description"],
+      "fieldOperators": [
+        { "label": "Product", "operators": ["Equal", "Not Equal", "Contain", "Start With", "End With", "Fuzzy"] },
+        { "label": "Product Description", "operators": ["Equal", "Not Equal", "Contain", "Start With", "End With", "Fuzzy"] }
+      ],
+      "mainVerifyColumns": [
+        { "label": "Product", "nth": 2 },
+        { "label": "Product Description", "nth": 1 },
+        { "label": "ObjectID" }
+      ]
+    },
+
+    "srch-sm-05": {
+      "description": "[SEARCH MASTER DATA] Duplicate Method ID + Multi-Table Fields - Product/ProductDescription/ProductPlant/ProductClassification",
+      "priority": "HIGH",
+      "reason": "Validation - Duplicate method ID + Multi-table fields",
+      "templateName": "AUTO_MM01_SEARCH_MD",
+      "duplicateMethodId": "DEFAULT01",
+      "duplicateMethodName": "Default Search Method",
+      "expectedErrorText": "This Method ID has already existed",
+      "methodName": "Auto_Search_TC05",
+      "methodId": "SRCHTC05",
+      "fieldConfigs": [
+        { "businessTable": "Product", "fieldName": "product", "controlType": "TEXTBOX" },
+        { "businessTable": "ProductDescription", "fieldName": "productDescription", "controlType": "TEXTBOX" },
+        { "businessTable": "ProductPlant", "fieldName": "plant", "controlType": "TEXTBOX" },
+        { "businessTable": "ProductClassification", "fieldName": "class", "controlType": "TEXTBOX" }
+      ],
+      "resultFields": ["product", "productDescription", "objectID", "plant", "class"],
+      "searchValue": "90785",
+      "searchFieldLabels": ["Product", "Product Description", "Plant", "Class"],
+      "fieldOperators": [
+        { "label": "Product", "operators": ["Equal", "Not Equal", "Contain", "Start With", "End With", "Fuzzy"] },
+        { "label": "Product Description", "operators": ["Equal", "Not Equal", "Contain", "Start With", "End With", "Fuzzy"] },
+        { "label": "Plant", "operators": ["Equal", "Not Equal", "Contain", "Start With", "End With", "Fuzzy"] },
+        { "label": "Class", "operators": ["Equal", "Not Equal", "Contain", "Start With", "End With", "Fuzzy"] }
+      ],
+      "mainVerifyColumns": [
+        { "label": "Product", "nth": 2 },
+        { "label": "Product Description", "nth": 1 },
+        { "label": "ObjectID" },
+        { "label": "Plant" },
+        { "label": "Class" }
+      ]
+    },
+
+    "srch-sm-09": {
+      "description": "[SEARCH MASTER DATA] Empty Search Criteria - Search without filling any field shows error dialog",
+      "priority": "HIGH",
+      "reason": "Validation - Empty search criteria",
+      "templateName": "AUTO_MM01_SEARCH_MD",
+      "methodName": "Auto_Search_TC09",
+      "methodId": "SRCHTC09",
+      "fieldConfigs": [
+        { "businessTable": "Product", "fieldName": "product", "controlType": "TEXTBOX" },
+        { "businessTable": "ProductDescription", "fieldName": "productDescription", "controlType": "TEXTBOX" }
+      ],
+      "resultFields": ["product", "productDescription", "objectID"],
+      "searchFieldLabels": ["Product", "Product Description"],
+      "expectedErrorMessage": "Please input all required fields"
+    },
+
+    "srch-sm-10": {
+      "description": "[SEARCH MASTER DATA] Reorder Result Fields - Change field index order in Search Result Settings",
+      "priority": "HIGH",
+      "reason": "Validation - Reorder result fields",
+      "templateName": "AUTO_MM01_SEARCH_MD",
+      "methodName": "Auto_Search_TC10",
+      "methodId": "SRCHTC10",
+      "fieldConfigs": [
+        { "businessTable": "Product", "fieldName": "product", "controlType": "TEXTBOX" },
+        { "businessTable": "ProductDescription", "fieldName": "productDescription", "controlType": "TEXTBOX" }
+      ],
+      "resultFields": ["productType", "productDescription", "objectID"],
+      "reorderFields": [
+        { "field": "productDescription", "newIndex": "0" },
+        { "field": "product", "newIndex": "1" }
+      ],
+      "searchValue": "90785",
+      "searchFieldLabels": ["Product", "Product Description"],
+      "fieldOperators": [
+        { "label": "Product", "operators": ["Equal", "Not Equal", "Contain", "Start With", "End With", "Fuzzy"] },
+        { "label": "Product Description", "operators": ["Equal", "Not Equal", "Contain", "Start With", "End With", "Fuzzy"] }
+      ],
+      "mainVerifyColumns": [
+        { "label": "Product Description", "nth": 1 },
+        { "label": "Product Type" },
+        { "label": "ObjectID" }
+      ]
+    },
+
+    "srch-sm-11": {
+      "description": "[SEARCH MASTER DATA] Cancel Add Method - Cancel method creation, then create and verify",
+      "priority": "MEDIUM",
+      "reason": "Negative - Cancel flow",
+      "templateName": "AUTO_MM01_SEARCH_MD",
+      "methodName": "Auto_Search_TC11",
+      "methodId": "SRCHTC11",
+      "fieldConfigs": [
+        { "businessTable": "Product", "fieldName": "product", "controlType": "TEXTBOX" },
+        { "businessTable": "ProductDescription", "fieldName": "productDescription", "controlType": "TEXTBOX" }
+      ],
+      "resultFields": ["product", "productDescription", "objectID"],
+      "searchValue": "90785",
+      "searchFieldLabels": ["Product", "Product Description"],
+      "fieldOperators": [
+        { "label": "Product", "operators": ["Equal", "Not Equal", "Contain", "Start With", "End With", "Fuzzy"] },
+        { "label": "Product Description", "operators": ["Equal", "Not Equal", "Contain", "Start With", "End With", "Fuzzy"] }
+      ],
+      "mainVerifyColumns": [
+        { "label": "Product", "nth": 1 },
+        { "label": "Product Description", "nth": 1 },
+        { "label": "ObjectID" }
+      ]
+    },
+
+    "srch-sm-12": {
+      "description": "[SEARCH MASTER DATA] Multi-Field Search - Fill multiple criteria and verify combined results",
+      "priority": "MEDIUM",
+      "reason": "Positive - Multi-field search",
+      "templateName": "AUTO_MM01_SEARCH_MD",
+      "methodName": "Auto_Search_TC12",
+      "methodId": "SRCHTC12",
+      "fieldConfigs": [
+        { "businessTable": "Product", "fieldName": "product", "controlType": "TEXTBOX" },
+        { "businessTable": "ProductDescription", "fieldName": "productDescription", "controlType": "TEXTBOX" }
+      ],
+      "resultFields": ["product", "productDescription", "objectID"],
+      "searchFieldValues": [
+        { "label": "Product", "value": "90785" },
+        { "label": "Product Description", "value": "" }
+      ],
+      "searchFieldLabels": ["Product", "Product Description"],
+      "fieldOperators": [
+        { "label": "Product", "operators": ["Equal", "Not Equal", "Contain", "Start With", "End With", "Fuzzy"] },
+        { "label": "Product Description", "operators": ["Equal", "Not Equal", "Contain", "Start With", "End With", "Fuzzy"] }
+      ],
+      "mainVerifyColumns": [
+        { "label": "Product", "nth": 1 },
+        { "label": "Product Description", "nth": 1 },
+        { "label": "ObjectID" }
+      ]
+    },
+
+    "srch-sm-13": {
+      "description": "[SEARCH MASTER DATA] Remove Result Field - Remove one result field and verify column not displayed",
+      "priority": "MEDIUM",
+      "reason": "Negative - Remove result field",
+      "templateName": "AUTO_MM01_SEARCH_MD",
+      "methodName": "Auto_Search_TC13",
+      "methodId": "SRCHTC13",
+      "fieldConfigs": [
+        { "businessTable": "Product", "fieldName": "product", "controlType": "TEXTBOX" }
+      ],
+      "resultFields": ["product", "productDescription", "objectID"],
+      "removeResultField": "productDescription",
+      "verifyResultFields": ["product", "objectID"],
+      "hiddenResultField": "Product Description",
+      "searchValue": "90785",
+      "searchFieldLabels": ["Product"],
+      "fieldOperators": [
+        { "label": "Product", "operators": ["Equal", "Not Equal", "Contain", "Start With", "End With", "Fuzzy"] }
+      ],
+      "mainVerifyColumns": [
+        { "label": "Product", "nth": 1 },
+        { "label": "ObjectID" }
+      ]
+    }
+  }
+}

@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Coverage — SimpleMDG Automation Hub</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/shared.css">
+<style>
+.cov-cell { text-align: center; font-family: var(--mono); font-size: 12px; }
+.cov-pass { color: var(--green); }
+.cov-fail { color: var(--red); }
+.cov-quar { color: var(--orange); }
+.cov-none { color: var(--text-4); }
+.tag-warn-banner {
+  display: none; align-items: center; gap: 10px; padding: 10px 14px; margin: 0 16px 16px;
+  border-radius: var(--r); background: var(--amber-bg); border: 1px solid var(--amber-bdr);
+  color: var(--amber); font-size: 12.5px; cursor: pointer;
+}
+.tag-warn-banner .num { font-family: var(--mono); font-weight: 700; }
+.tag-warn-detail { font-size: 12px; }
+.tag-warn-detail summary { cursor: pointer; color: var(--text-3); padding: 4px 0; }
+</style>
+</head>
+<body>
+<div id="shell-slot"></div>
+
+<div class="main">
+  <div class="topbar">
+    <div>
+      <div class="topbar-title">Coverage</div>
+      <div class="topbar-sub">Test coverage grouped by business process (@bp: tags)</div>
+    </div>
+  </div>
+  <div class="page-body">
+    <div id="tagWarnBanner" class="tag-warn-banner"></div>
+    <div class="panel">
+      <div class="panel-head"><span class="panel-title">Coverage Matrix</span></div>
+      <div id="coverageBody" style="padding:0 4px"><div class="spinner"></div></div>
+    </div>
+    <div class="panel" id="noCoveragePanel" style="display:none">
+      <div class="panel-head"><span class="panel-title">No Coverage (no @bp: tag)</span></div>
+      <div id="noCoverageBody" style="padding:0 4px"></div>
+    </div>
+    <div class="panel" id="tagValidationPanel" style="display:none">
+      <div class="panel-head"><span class="panel-title">Tag taxonomy gaps</span></div>
+      <div id="tagValidationBody" style="padding:12px 16px"></div>
+    </div>
+  </div>
+</div>
+
+<script src="/shared.js"></script>
+<script>
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+}
+
+async function loadCoverage() {
+  try {
+    const data = await fetch('/api/coverage').then(r => r.json());
+    if (!data.ok) throw new Error(data.error);
+    renderCoverage(data.groups, data.noCoverage);
+  } catch (err) {
+    $('coverageBody').innerHTML = `<div class="empty">⚠ ${err.message}</div>`;
+  }
+}
+
+function renderCoverage(groups, noCoverage) {
+  if (!groups.length) {
+    $('coverageBody').innerHTML = '<div class="empty">No @bp: business-process tags found in any spec file yet.</div>';
+  } else {
+    $('coverageBody').innerHTML = `
+      <table>
+        <thead><tr>
+          <th style="width:34%">Business Process</th>
+          <th class="cov-cell">Passing</th>
+          <th class="cov-cell">Failing</th>
+          <th class="cov-cell">Quarantined</th>
+        </tr></thead>
+        <tbody>
+          ${groups.map(g => `<tr>
+            <td class="col-mono">${escapeHtml(g.businessProcess)}</td>
+            <td class="cov-cell cov-pass">${g.automatedPassing}</td>
+            <td class="cov-cell cov-fail">${g.automatedFailing}</td>
+            <td class="cov-cell cov-quar">${g.quarantined}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`;
+  }
+
+  if (noCoverage && noCoverage.count) {
+    $('noCoveragePanel').style.display = '';
+    $('noCoverageBody').innerHTML = `
+      <table>
+        <thead><tr><th style="width:20%">Suite</th><th>Test</th></tr></thead>
+        <tbody>
+          ${noCoverage.tests.map(t => `<tr>
+            <td>${escapeHtml(t.suiteName)}</td>
+            <td class="col-mono">${escapeHtml(t.title)}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`;
+  }
+}
+
+// ─────────────────────────────────────────
+// Tag taxonomy validation (v1.4.0 item 3) — lightweight supporting panel,
+// not a flagship page. Warning banner + expandable detail, shown only when
+// there's something to flag.
+// ─────────────────────────────────────────
+async function loadTagValidation() {
+  try {
+    const data = await fetch('/api/tags/validation').then(r => r.json());
+    if (!data.ok) return;
+    renderTagValidation(data);
+  } catch (_) { /* non-critical, fail silently */ }
+}
+
+function renderTagValidation(data) {
+  const { untaggedCount, untaggedBySuite, typos } = data;
+  if (!untaggedCount && (!typos || !typos.length)) return;
+
+  const banner = $('tagWarnBanner');
+  banner.style.display = 'flex';
+  banner.onclick = () => $('tagValidationPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const parts = [];
+  if (untaggedCount) parts.push(`<span class="num">${untaggedCount}</span> spec(s) have no traceability tags`);
+  if (typos && typos.length) parts.push(`<span class="num">${typos.length}</span> likely tag typo(s)`);
+  banner.innerHTML = `⚠ ${parts.join(' · ')} — see "Tag taxonomy gaps" below`;
+
+  $('tagValidationPanel').style.display = '';
+  let html = '';
+  if (untaggedCount) {
+    html += `<details open class="tag-warn-detail"><summary>Untagged specs (${untaggedCount})</summary>
+      <table><thead><tr><th style="width:24%">Suite</th><th>Spec file</th></tr></thead><tbody>
+        ${Object.entries(untaggedBySuite).flatMap(([suite, specs]) => specs.map(spec => `
+          <tr><td class="col-mono">${escapeHtml(suite)}</td><td class="col-mono">${escapeHtml(spec)}</td></tr>`)).join('')}
+      </tbody></table></details>`;
+  }
+  if (typos && typos.length) {
+    html += `<details class="tag-warn-detail"><summary>Likely tag typos (${typos.length})</summary>
+      <table><thead><tr><th style="width:20%">Suite</th><th style="width:36%">File</th><th>Found</th><th>Likely intended</th></tr></thead><tbody>
+        ${typos.map(t => `<tr>
+          <td class="col-mono">${escapeHtml(t.suiteName)}</td>
+          <td class="col-mono">${escapeHtml(t.file)}</td>
+          <td class="col-mono cov-fail">${escapeHtml(t.found)}</td>
+          <td class="col-mono cov-pass">${escapeHtml(t.likelyIntended)}</td>
+        </tr>`).join('')}
+      </tbody></table></details>`;
+  }
+  $('tagValidationBody').innerHTML = html;
+}
+
+function onShellReady() {
+  loadCoverage();
+  loadTagValidation();
+}
+initShell('coverage');
+</script>
+</body>
+</html>

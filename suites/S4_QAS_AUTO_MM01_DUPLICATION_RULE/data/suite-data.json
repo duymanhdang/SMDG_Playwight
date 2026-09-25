@@ -1,0 +1,201 @@
+{
+  "suite": "S4_QAS_AUTO_MM01_DUPLICATION_RULE",
+  "description": "SimpleMDG S4 QAS - Duplication Rule (Business Rule) Automated Test Suite",
+  "environment": "QAS",
+  "templates": {
+    "AUTO_MM01_DUPLICATION_RULE": {
+      "name": "AUTO_MM01_DUPLICATION_RULE",
+      "objectType": "Product"
+    }
+  },
+  "comments": {
+    "requestorSubmit": "Automation: Duplication Rule - Requestor has submitted this request",
+    "approverApprove": "Automation: Duplication Rule - Approver has approved this request",
+    "stewardActivate": "Automation: Duplication Rule - Steward has activated this request"
+  },
+  "rules": {
+    "R1": {
+      "id": "R1",
+      "sourceSection": "BASICDIMENSION",
+      "sourceField": "netWeight",
+      "targetSection": "BASICDIMENSION",
+      "targetField": "grossWeight",
+      "testValue": "100.000",
+      "mechanism": "UI-blocking",
+      "sourceTab": "Basic Data",
+      "sourceLabel": "Net Weight",
+      "targetLabel": "Gross Weight",
+      "sourceSectionTitle": "Dimensions/EANs",
+      "targetSectionTitle": "Dimensions/EANs",
+      "sameSection": true,
+      "sourceType": "INPUT_NUMBER",
+      "targetType": "INPUT_NUMBER",
+      "errorMsg": "Please correct all the field(s)"
+    },
+    "R3": {
+      "id": "R3",
+      "sourceSection": "BASICGENERAL",
+      "sourceField": "baseUnit",
+      "targetSection": "UNITSOFMEASURE",
+      "targetField": "alternativeUnit",
+      "testValue": "BAG",
+      "mechanism": "Backend-async",
+      "sourceTab": "Basic Data",
+      "sourceF4Index": 2,
+      "sourceSectionTitle": "Basic Data",
+      "sourceLabel": "Base Unit of Measure",
+      "targetSectionTitle": "Units of Measure",
+      "targetLabel": "Alternative Unit",
+      "sourceType": "F4",
+      "targetType": "F4",
+      "targetEditFlow": true,
+      "targetEditConfirm": "Update",
+      "systemLogPattern": "BASICGENERAL - baseUnit| UNITSOFMEASURE - alternativeUnit"
+    },
+    "R4": {
+      "id": "R4",
+      "sourceSection": "BASICGENERAL",
+      "sourceField": "baseUnit",
+      "targetSection": "GENERALDATA4",
+      "targetField": "salesMeasureUnit",
+      "testValue": "EA",
+      "mechanism": "Backend-async",
+      "sourceTab": "Basic Data",
+      "sourceF4Index": 2,
+      "sourceSectionTitle": "Basic Data",
+      "sourceLabel": "Base Unit of Measure",
+      "sourceSelectMethod": "text",
+      "targetTab": "Sales Org Data",
+      "targetSectionTitle": "Sales Org Data",
+      "targetLabel": "Sales Unit",
+      "sourceType": "F4",
+      "targetType": "F4",
+      "targetAddButtonIndex": 5,
+      "targetEditFlow": true,
+      "targetEditConfirm": "Add",
+      "dialogConfig": {
+        "fields": [
+          {"label": "Sales Org", "f4Index": 0, "searchValue": "0001", "selectMethod": "firstRow"},
+          {"label": "Distr. Chl", "f4Index": 1, "searchValue": "0001", "selectMethod": "firstRow"},
+          {"label": "Sales Unit", "f4Index": 2, "searchValue": "EA", "selectMethod": "text"}
+        ],
+        "subTab": "Grouping Terms",
+        "additionalFields": [
+          {"label": "Item Category Group", "f4Index": 6, "searchValue": "0001", "selectMethod": "firstRow"},
+          {"label": "Product Hierarchy", "f4Index": 7, "searchValue": "00001", "selectMethod": "text"}
+        ]
+      },
+      "systemLogPattern": "BASICGENERAL - baseUnit| GENERALDATA4 - salesMeasureUnit"
+    },
+    "R5": {
+      "id": "R5",
+      "sourceSection": "UNITSOFMEASURE",
+      "sourceField": "quantityDenominator",
+      "targetSection": "UNITSOFMEASURE",
+      "targetField": "quantityNumerator",
+      "testValue": "15",
+      "mechanism": "Backend-async",
+      "sourceSectionTitle": "Units of Measure",
+      "targetSectionTitle": "Units of Measure",
+      "sourceLabel": "Denominator",
+      "targetLabel": "Numerator",
+      "sameSection": true,
+      "sameDialog": true,
+      "sourceType": "INPUT_NUMBER",
+      "targetType": "INPUT_NUMBER",
+      "targetEditFlow": true,
+      "targetEditConfirm": "Update",
+      "initialValue": "1",
+      "systemLogPattern": "UNITSOFMEASURE - quantityDenominator| UNITSOFMEASURE - quantityNumerator"
+    },
+    "R9": {
+      "id": "R9",
+      "sourceSection": "BASICTEXT",
+      "sourceField": "longText",
+      "targetSection": "BASICTEXT",
+      "targetField": "language",
+      "testValue": "EN",
+      "mechanism": "UI-blocking",
+      "sourceSectionTitle": "Basic Text",
+      "targetSectionTitle": "Basic Text",
+      "sourceLabel": "Basic Text / Language",
+      "targetLabel": "Language",
+      "sameSection": true,
+      "sourceType": "LONGTEXT",
+      "targetType": "DROPDOWN",
+      "targetF4Index": 15,
+      "errorMsg": "Please correct all the field(s)"
+    },
+    "R10": {
+      "id": "R10",
+      "sourceSection": "GLOBALDATA",
+      "sourceField": "productType",
+      "targetSection": "BASICTEXT",
+      "targetField": "longText",
+      "testValue": "FERT",
+      "mechanism": "UI-blocking",
+      "sourceSectionTitle": "Basic Data",
+      "sourceLabel": "Material Type",
+      "targetSectionTitle": "Basic Text",
+      "targetLabel": "Basic Text / Language",
+      "sourceType": "DROPDOWN",
+      "targetType": "LONGTEXT",
+      "sourceF4Index": 1,
+      "errorMsg": "Please correct all the field(s)"
+    }
+  },
+  "testData": {
+    "dr-e2e-mm-01": {
+      "description": "Admin: Navigation & UI for Duplication Rule page",
+      "priority": "High",
+      "templateName": "AUTO_MM01_DUPLICATION_RULE"
+    },
+    "dr-e2e-mm-02": {
+      "description": "Admin: CRUD + Validation for Duplication Rules",
+      "priority": "High",
+      "templateName": "AUTO_MM01_DUPLICATION_RULE",
+      "rules": ["R1", "R3"]
+    },
+    "dr-e2e-mm-03": {
+      "description": "Main: UI-blocking Duplication Check (same-section rules)",
+      "priority": "High",
+      "templateName": "AUTO_MM01_DUPLICATION_RULE",
+      "objectType": "Product",
+      "rules": ["R1", "R9"]
+    },
+    "dr-e2e-mm-04": {
+      "description": "Main: Backend-async Duplication Check (cross-section rules)",
+      "priority": "High",
+      "templateName": "AUTO_MM01_DUPLICATION_RULE",
+      "objectType": "Product",
+      "rules": ["R3", "R4", "R5"]
+    },
+    "dr-e2e-mm-05": {
+      "description": "Main: Additional UI-blocking rules (R9, R10)",
+      "priority": "Medium",
+      "templateName": "AUTO_MM01_DUPLICATION_RULE",
+      "objectType": "Product",
+      "rules": ["R10"]
+    },
+    "dr-e2e-mm-06": {
+      "description": "Workflow: Duplication Rule through copy/edit scenario",
+      "priority": "High",
+      "templateName": "AUTO_MM01_DUPLICATION_RULE",
+      "objectType": "Product",
+      "sourceCR": "CR0000024380",
+      "rules": ["R3"]
+    },
+    "dr-e2e-mm-07": {
+      "description": "E2E Smoke: R1-NetWeight→GrossWeight - Admin setup → duplication → fix → submit → cleanup",
+      "priority": "Critical",
+      "templateName": "AUTO_MM01_DUPLICATION_RULE",
+      "objectType": "Product",
+      "sourceCR": "CR0000024380",
+      "ruleId": "R1",
+      "header": {
+        "description": "DR-E2E-MM-07: E2E Smoke Duplication Rule",
+        "priority": "Medium"
+      }
+    }
+  }
+}

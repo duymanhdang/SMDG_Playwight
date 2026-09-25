@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node -c server.js)",
+      "Bash(node -c storage.js)",
+      "Bash(npm install *)",
+      "Bash(npx vitest *)",
+      "Bash(npm test *)",
+      "Bash(grep -n '\\\\${t\\\\.title}' public/results.html)",
+      "Bash(grep -n '\\\\${run\\\\.label' public/results.html)",
+      "Bash(timeout 4 node server.js)",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(rm -f data/runs-index.json)",
+      "Bash(grep -rn '\\\\${.*title.*}' public/execution-center.html public/explorer.html)",
+      "Bash(netstat -ano)",
+      "Bash(curl -s http://127.0.0.1:3000/api/meta)",
+      "Bash(curl -s http://127.0.0.1:3000/api/settings)",
+      "Bash(curl -s http://127.0.0.1:3000/api/runs/history)",
+      "Bash(curl -s http://127.0.0.1:3000/api/overview/stats)",
+      "Bash(curl -s http://127.0.0.1:3000/api/flaky)",
+      "Bash(taskkill //PID 11768 //F)",
+      "Bash(taskkill //PID 15380 //F)"
+    ]
+  }
+}

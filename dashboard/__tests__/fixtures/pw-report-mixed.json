@@ -1,0 +1,74 @@
+{
+  "suites": [
+    {
+      "title": "e2e",
+      "file": "suites/material-master/e2e/create.spec.ts",
+      "specs": [
+        {
+          "title": "create material master",
+          "tests": [
+            {
+              "projectName": "chromium",
+              "status": "expected",
+              "results": [
+                { "status": "passed", "duration": 1200, "attachments": [] }
+              ]
+            }
+          ]
+        },
+        {
+          "title": "create material master with attachment",
+          "tests": [
+            {
+              "projectName": "chromium",
+              "status": "unexpected",
+              "results": [
+                {
+                  "status": "failed",
+                  "duration": 3400,
+                  "error": { "message": "Timeout 30000ms exceeded while waiting for locator" },
+                  "attachments": [
+                    { "name": "screenshot", "contentType": "image/png", "path": "/abs/test-results/foo/test-failed-1.png" },
+                    { "name": "video", "contentType": "video/webm", "path": "/abs/test-results/foo/video.webm" },
+                    { "name": "trace", "path": "/abs/test-results/foo/trace.zip" }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "title": "duplicate check on material create",
+          "tests": [
+            {
+              "projectName": "chromium",
+              "status": "flaky",
+              "results": [
+                { "status": "failed", "duration": 800, "error": { "message": "net::ERR_CONNECTION_RESET" } },
+                { "status": "passed", "duration": 900, "attachments": [] }
+              ]
+            }
+          ]
+        }
+      ],
+      "suites": [
+        {
+          "title": "nested",
+          "file": "suites/material-master/e2e/create.spec.ts",
+          "specs": [
+            {
+              "title": "skipped test example",
+              "tests": [
+                {
+                  "projectName": "chromium",
+                  "status": "skipped",
+                  "results": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

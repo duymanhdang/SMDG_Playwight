@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Execution Center — SimpleMDG Automation Hub</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/shared.css">
+<!-- Chart.js, same pinned build/SRI/offline-degrade pattern as report-center.html
+     (v1.8.0 part 2) — reused here for Run Status Trend + Workers & Capacity. -->
+<script
+  src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"
+  integrity="sha384-NrKB+u6Ts6AtkIhwPixiKTzgSKNblyhlk0Sohlgar9UHUBzai/sgnNNWWd291xqt"
+  crossorigin="anonymous"
+  onerror="window.__chartLibFailed = true;"
+></script>
+<style>
+.limits-strip { display: flex; gap: 18px; align-items: center; }
+.limit-item { display: flex; flex-direction: column; align-items: center; }
+.limit-val { font-size: 15px; font-weight: 700; font-family: var(--mono); }
+.limit-lbl { font-size: 9.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-4); }
+
+.run-card {
+  display: flex; align-items: center; gap: 14px; padding: 13px 16px; border-bottom: 1px solid var(--border);
+}
+.run-card:last-child { border-bottom: none; }
+.run-card-icon { width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.run-card-icon.running { background: var(--orange-bg); color: var(--orange); }
+.run-card-icon.done { background: var(--green-bg); color: var(--green); }
+.run-card-icon.failed { background: var(--red-bg); color: var(--red); }
+.run-card-icon.interrupted { background: var(--gray-bg); color: var(--gray); }
+.run-card-info { flex: 1; min-width: 0; }
+.run-card-title { font-size: 12.5px; font-weight: 600; color: var(--text); }
+.run-card-sub { font-size: 11px; color: var(--text-4); margin-top: 1px; }
+.run-card-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.run-progress-track { height: 4px; background: var(--surface-3); border-radius: 2px; margin-top: 6px; overflow: hidden; }
+.run-progress-fill { height: 100%; background: var(--orange); border-radius: 2px; animation: indeterminate 1.4s ease-in-out infinite; width: 40%; }
+.run-progress-fill.live { animation: none; }
+@keyframes indeterminate { 0% { margin-left: -40%; } 100% { margin-left: 100%; } }
+
+/* Live view (v0.9.0, §ADR-2 / §6.C) — additive to the existing polling
+   progress bar above, which stays as the fallback when a host project
+   hasn't opted the hub-reporter in. */
+.live-toggle { font-size: 10.5px; }
+.live-panel { margin-top: 10px; border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; }
+.live-panel[hidden] { display: none; }
+.live-count { font-size: 11px; color: var(--text-4); padding: 8px 10px; border-bottom: 1px solid var(--border); }
+.live-tests { max-height: 140px; overflow-y: auto; font-family: var(--mono); font-size: 11px; }
+.live-test-row { display: flex; justify-content: space-between; gap: 8px; padding: 4px 10px; border-bottom: 1px solid var(--border); }
+.live-test-row:last-child { border-bottom: none; }
+.live-test-row.passed { color: var(--green); }
+.live-test-row.failed { color: var(--red); }
+.live-test-row.timedOut { color: var(--red); }
+.live-test-row.skipped, .live-test-row.interrupted { color: var(--text-4); }
+.live-console-wrap { border-top: 1px solid var(--border); }
+.live-filter { width: 100%; box-sizing: border-box; padding: 6px 10px; border: none; border-bottom: 1px solid var(--border); background: var(--surface-2); color: var(--text); font-size: 11px; font-family: var(--mono); }
+.live-console { max-height: 140px; overflow-y: auto; font-family: var(--mono); font-size: 10.5px; padding: 6px 10px; white-space: pre-wrap; color: var(--text-3); background: var(--surface-2); }
+.live-note { font-size: 10.5px; color: var(--text-4); padding: 8px 10px; border-bottom: 1px solid var(--border); background: var(--surface-2); }
+
+/* Run Timeline Strip (v1.5.0 item 1) — reuses the same SSE consumer already
+   wired up for the live-progress panel above (begin/testBegin/testEnd);
+   no second EventSource opened. One cell per test, colored with the same
+   7-status tokens used everywhere else, filling left-to-right as testEnd
+   events arrive. */
+.timeline-strip-wrap { padding: 8px 10px; border-bottom: 1px solid var(--border); }
+.timeline-strip-label { font-size: 9.5px; color: var(--text-4); margin-bottom: 4px; }
+.timeline-strip { display: flex; gap: 1.5px; height: 16px; flex-wrap: wrap; align-content: flex-start; }
+.timeline-cell { flex: 1 0 3px; max-width: 9px; height: 100%; border-radius: 1.5px; background: var(--surface-3); }
+.timeline-cell.passed { background: var(--green); }
+.timeline-cell.failed, .timeline-cell.timedOut { background: var(--red); }
+.timeline-cell.flaky { background: var(--orange); }
+.timeline-cell.skipped, .timeline-cell.interrupted { background: var(--gray); }
+
+/* v1.9.0 — KPI strip, tabs, and side-panel widgets (Workers & Capacity /
+   Run Status Trend / Top Failing Suites), mirroring Report Center's layout. */
+.ec-layout { display: grid; grid-template-columns: 1fr 320px; gap: var(--space-4); align-items: start; }
+@media (max-width: 980px) { .ec-layout { grid-template-columns: 1fr; } }
+.ec-side { display: flex; flex-direction: column; gap: var(--space-4); }
+
+.ec-tabs { display: flex; gap: 4px; }
+.ec-tab {
+  padding: 6px 12px; border: none; background: none; color: var(--text-3); font-size: var(--text-sm);
+  font-weight: 600; border-bottom: 2px solid transparent; cursor: pointer; font-family: var(--sans);
+}
+.ec-tab:hover { color: var(--text); }
+.ec-tab.active { color: var(--blue); border-bottom-color: var(--blue); }
+.ec-tab-panel[hidden] { display: none; }
+
+.donut-wrap { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+.donut-legend { display: flex; flex-direction: column; gap: 6px; font-size: var(--text-sm); }
+.donut-legend-row { display: flex; align-items: center; gap: 8px; }
+.donut-swatch { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+
+.suite-bar-row { display: flex; align-items: center; gap: 10px; font-size: var(--text-sm); padding: 3px 0; }
+.suite-bar-name { flex: 1; min-width: 0; color: var(--text-2); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.suite-bar-track { flex: 1; height: 8px; background: var(--surface-3); border-radius: 4px; overflow: hidden; }
+.suite-bar-fill { height: 100%; border-radius: 4px; background: var(--red); }
+.suite-bar-val { width: 36px; text-align: right; color: var(--text-3); font-family: var(--mono); font-size: var(--text-xs); }
+</style>
+</head>
+<body>
+<div id="shell-slot"></div>
+
+<div class="main">
+  <div class="topbar">
+    <div>
+      <div class="topbar-title">Execution Center</div>
+      <div class="topbar-sub">Live runs and recent history in one place · a terminal window opens automatically to tail each run's live log</div>
+    </div>
+    <div class="limits-strip" style="margin-left:auto">
+      <div class="limit-item"><span class="limit-val" id="limSpecs">0/4</span><span class="limit-lbl">Specs</span></div>
+      <div class="limit-item"><span class="limit-val" id="limSuites">0/2</span><span class="limit-lbl">Suites</span></div>
+      <div class="limit-item"><span class="limit-val" id="limWorkers">0/6</span><span class="limit-lbl">Workers</span></div>
+    </div>
+    <a class="btn-primary" href="/explorer.html">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      New Run
+    </a>
+  </div>
+
+  <div class="page-body">
+
+    <div id="statGrid" class="stat-grid">
+      <div class="skeleton-stat"><div class="skeleton skeleton-line w-40"></div><div class="skeleton skeleton-line w-60"></div><div class="skeleton skeleton-line w-40"></div></div>
+      <div class="skeleton-stat"><div class="skeleton skeleton-line w-40"></div><div class="skeleton skeleton-line w-60"></div><div class="skeleton skeleton-line w-40"></div></div>
+      <div class="skeleton-stat"><div class="skeleton skeleton-line w-40"></div><div class="skeleton skeleton-line w-60"></div><div class="skeleton skeleton-line w-40"></div></div>
+    </div>
+
+    <div class="ec-layout">
+      <div class="panel">
+        <div class="panel-head">
+          <div class="ec-tabs">
+            <button class="ec-tab active" id="tabBtnActive" onclick="switchTab('active')">Active Runs</button>
+            <button class="ec-tab" id="tabBtnRecent" onclick="switchTab('recent')">Recent Runs</button>
+          </div>
+          <a class="btn-secondary" href="/results.html">Full history →</a>
+        </div>
+        <div class="ec-tab-panel" id="tabPanelActive">
+          <div style="padding:8px 16px 0"><span class="panel-sub" id="activeCount">0 running</span></div>
+          <div id="activeRunsBody"><div class="empty">No active runs right now.</div></div>
+        </div>
+        <div class="ec-tab-panel" id="tabPanelRecent" hidden>
+          <div id="recentRunsBody"><div class="spinner"></div></div>
+        </div>
+      </div>
+
+      <div class="ec-side">
+        <div class="panel">
+          <div class="panel-head"><span class="panel-title">Workers &amp; Capacity</span></div>
+          <div class="panel-body" id="workersBody"><div class="spinner"></div></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><span class="panel-title">Run Status Trend (last 7 days)</span></div>
+          <div class="panel-body" id="statusTrendBody"><div class="skeleton skeleton-chart"></div></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><span class="panel-title">Top Failing Suites (last 7 days)</span></div>
+          <div class="panel-body" id="topFailingBody"><div class="skeleton skeleton-chart"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Regression Cycle grouping (Phase 6.6) -->
+    <div class="panel">
+      <div class="panel-head">
+        <span class="panel-title">Regression Cycles</span>
+        <div style="display:flex;gap:8px">
+          <input type="text" id="newCycleName" placeholder="e.g. Release 2.5 Regression" style="padding:6px 10px;border:1px solid var(--border-md);border-radius:var(--r);background:var(--surface);color:var(--text);font-size:12px;min-width:220px">
+          <button class="btn-primary" onclick="createCycle()">+ New Cycle</button>
+        </div>
+      </div>
+      <div id="cyclesBody" style="padding:0"><div class="spinner"></div></div>
+    </div>
+
+  </div>
+</div>
+
+<script src="/shared.js"></script>
+<script>
+function fmt(ms) {
+  const s = Math.floor(ms / 1000);
+  return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+}
+function fmtRelative(ms) {
+  if (!ms) return '—';
+  const diff = Date.now() - ms;
+  const min = Math.round(diff / 60000);
+  if (min < 1) return 'just now';
+  if (min < 60) return `${min}m ago`;
+  const hr = Math.round(min / 60);
+  if (hr < 24) return `${hr}h ago`;
+  return `${Math.round(hr / 24)}d ago`;
+}
+function fmtDuration(ms) {
+  if (!ms || ms < 0) return '—';
+  const s = Math.round(ms / 1000);
+  return s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${s % 60}s`;
+}
+function fmtDate(ms) {
+  if (!ms) return 'Never';
+  return new Date(ms).toLocaleString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+function cssVar(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+function chartsAvailable() { return !window.__chartLibFailed && typeof window.Chart !== 'undefined'; }
+function chartUnavailableHtml() {
+  return '<div class="empty">⚠ Charts unavailable offline — the Chart.js library could not be loaded from its CDN.</div>';
+}
+
+// ─────────────────────────────────────────
+// Active Runs / Recent Runs tabs (v1.9.0)
+// ─────────────────────────────────────────
+function switchTab(tab) {
+  $('tabBtnActive').classList.toggle('active', tab === 'active');
+  $('tabBtnRecent').classList.toggle('active', tab === 'recent');
+  $('tabPanelActive').hidden = tab !== 'active';
+  $('tabPanelRecent').hidden = tab !== 'recent';
+}
+
+// ─────────────────────────────────────────
+// KPI strip — run-level status counts vs. the prior 7-day period
+// (GET /api/execution/stats, computeRunStats() in report-aggregator.js).
+// ─────────────────────────────────────────
+const EC_STAT_ICONS = {
+  totalRuns:     '<svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>',
+  passed:        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="20 6 9 17 4 12"/></svg>',
+  failed:        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>',
+  interrupted:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>',
+  avgDurationMs: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>',
+};
+function ecDeltaHtml(value, positiveIsGood) {
+  if (value === null || value === undefined) return '<span class="stat-delta" style="color:var(--text-4)">No data for prior period</span>';
+  const good = positiveIsGood ? value >= 0 : value <= 0;
+  const arrow = value >= 0 ? '↑' : '↓';
+  return `<span class="stat-delta ${good ? 'up' : 'down'}">${arrow} ${Math.abs(value)}% vs last 7 days</span>`;
+}
+async function loadExecutionStats() {
+  try {
+    const data = await fetch('/api/execution/stats?days=7').then(r => r.json());
+    if (!data.ok) throw new Error(data.error);
+    const deltas = data.deltas || {};
+    const cards = [
+      { key: 'totalRuns',     label: 'Total runs',   value: data.totalRuns, color: 'var(--blue)',   delta: ecDeltaHtml(deltas.totalRuns, true) },
+      { key: 'passed',        label: 'Passed',       value: `${data.passed} ${data.passedRate === null ? '' : `(${data.passedRate}%)`}`, color: 'var(--green)', delta: ecDeltaHtml(deltas.passed, true) },
+      { key: 'failed',        label: 'Failed',       value: `${data.failed} ${data.failedRate === null ? '' : `(${data.failedRate}%)`}`, color: 'var(--red)', delta: ecDeltaHtml(deltas.failed, false) },
+      { key: 'interrupted',   label: 'Interrupted',  value: `${data.interrupted} ${data.interruptedRate === null ? '' : `(${data.interruptedRate}%)`}`, color: 'var(--gray)', delta: ecDeltaHtml(deltas.interrupted, false) },
+      { key: 'avgDurationMs', label: 'Avg duration', value: fmtDuration(data.avgDurationMs), color: 'var(--text-3)', delta: ecDeltaHtml(deltas.avgDurationMs, false) },
+    ];
+    $('statGrid').innerHTML = cards.map(c => `
+      <div class="stat-card">
+        <div class="stat-icon-row">
+          <div class="stat-icon" style="--stat-color:${c.color}">${EC_STAT_ICONS[c.key]}</div>
+          <div class="stat-label">${c.label}</div>
+        </div>
+        <div class="stat-value">${c.value}</div>
+        ${c.delta}
+      </div>`).join('');
+
+    renderStatusTrend(data.statusTrend);
+  } catch (err) {
+    $('statGrid').innerHTML = `<div class="empty">⚠ ${err.message}</div>`;
+  }
+}
+
+let statusTrendChart = null;
+function renderStatusTrend(trend) {
+  if (!trend || !trend.length) {
+    $('statusTrendBody').innerHTML = '<div class="empty">No finished runs in the last 7 days.</div>';
+    return;
+  }
+  if (!chartsAvailable()) { $('statusTrendBody').innerHTML = chartUnavailableHtml(); return; }
+  $('statusTrendBody').innerHTML = '<canvas id="statusTrendCanvas" height="180"></canvas>';
+  const ctx = $('statusTrendCanvas').getContext('2d');
+  if (statusTrendChart) statusTrendChart.destroy();
+  statusTrendChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: trend.map(t => t.date.slice(5)),
+      datasets: [
+        { label: 'Passed', data: trend.map(t => t.passed), backgroundColor: cssVar('--green') },
+        { label: 'Failed', data: trend.map(t => t.failed), backgroundColor: cssVar('--red') },
+        { label: 'Interrupted', data: trend.map(t => t.interrupted), backgroundColor: cssVar('--gray') },
+      ],
+    },
+    options: {
+      responsive: true,
+      scales: {
+        x: { stacked: true, ticks: { color: cssVar('--text-3') }, grid: { display: false } },
+        y: { stacked: true, ticks: { color: cssVar('--text-3'), precision: 0 }, grid: { color: cssVar('--border') } },
+      },
+      plugins: {
+        legend: { position: 'bottom', labels: { color: cssVar('--text-3'), boxWidth: 10, font: { size: 10.5 } } },
+      },
+    },
+  });
+}
+
+// ─────────────────────────────────────────
+// Workers & Capacity donut (reuses GET /api/limits — no new data source).
+// ─────────────────────────────────────────
+let workersChart = null;
+async function loadWorkersCapacity() {
+  try {
+    const data = await fetch('/api/limits').then(r => r.json());
+    if (!data.ok) throw new Error(data.error);
+    const busy = data.current.totalWorkers;
+    const max = data.limits.maxTotalWorkers;
+    const idle = Math.max(0, max - busy);
+    const pct = max > 0 ? Math.round((busy / max) * 100) : 0;
+
+    if (!chartsAvailable()) {
+      $('workersBody').innerHTML = `<div class="empty">${busy} / ${max} workers busy (${pct}%)</div>`;
+      return;
+    }
+    $('workersBody').innerHTML = `
+      <div class="donut-wrap">
+        <div style="position:relative;width:120px;height:120px">
+          <canvas id="workersCanvas" width="120" height="120"></canvas>
+          <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none">
+            <div style="font-family:var(--mono);font-size:17px;font-weight:700;color:var(--text)">${pct}%</div>
+            <div style="font-size:9px;color:var(--text-4)">busy</div>
+          </div>
+        </div>
+        <div class="donut-legend">
+          <div class="donut-legend-row"><span class="donut-swatch" style="background:var(--blue)"></span><span>Busy</span><span style="color:var(--text-3);font-family:var(--mono);margin-left:auto">${busy} (${max > 0 ? Math.round(busy / max * 100) : 0}%)</span></div>
+          <div class="donut-legend-row"><span class="donut-swatch" style="background:var(--surface-3)"></span><span>Idle</span><span style="color:var(--text-3);font-family:var(--mono);margin-left:auto">${idle} (${max > 0 ? Math.round(idle / max * 100) : 0}%)</span></div>
+        </div>
+      </div>`;
+    const ctx = $('workersCanvas').getContext('2d');
+    if (workersChart) workersChart.destroy();
+    workersChart = new Chart(ctx, {
+      type: 'doughnut',
+      data: { datasets: [{ data: [busy, idle], backgroundColor: [cssVar('--blue'), cssVar('--surface-3')], borderColor: cssVar('--surface'), borderWidth: 2 }] },
+      options: { responsive: false, cutout: '70%', plugins: { legend: { display: false }, tooltip: { enabled: false } } },
+    });
+  } catch (err) {
+    $('workersBody').innerHTML = `<div class="empty">⚠ ${err.message}</div>`;
+  }
+}
+
+// ─────────────────────────────────────────
+// Top Failing Suites (last 7 days) — reuses Report Center's suite breakdown
+// (GET /api/reports/overview) rather than a new endpoint; ranks by fail rate.
+// ─────────────────────────────────────────
+async function loadTopFailingSuites() {
+  try {
+    const data = await fetch('/api/reports/overview?days=7').then(r => r.json());
+    if (!data.ok) throw new Error(data.error);
+    const ranked = (data.suiteBreakdown || [])
+      .filter(s => s.passRate !== null)
+      .map(s => ({ suiteName: s.suiteName, failRate: 100 - s.passRate }))
+      .filter(s => s.failRate > 0)
+      .sort((a, b) => b.failRate - a.failRate)
+      .slice(0, 4);
+    if (!ranked.length) {
+      $('topFailingBody').innerHTML = '<div class="empty">No failing suites in the last 7 days 🎉</div>';
+      return;
+    }
+    $('topFailingBody').innerHTML = ranked.map(s => `
+      <div class="suite-bar-row">
+        <span class="suite-bar-name" title="${escapeHtml(s.suiteName)}">${escapeHtml(s.suiteName)}</span>
+        <div class="suite-bar-track"><div class="suite-bar-fill" style="width:${s.failRate}%"></div></div>
+        <span class="suite-bar-val">${s.failRate}%</span>
+      </div>`).join('');
+  } catch (err) {
+    $('topFailingBody').innerHTML = `<div class="empty">⚠ ${err.message}</div>`;
+  }
+}
+
+async function loadLimits() {
+  try {
+    const data = await fetch('/api/limits').then(r => r.json());
+    if (!data.ok) return;
+    $('limSpecs').textContent = `${data.current.specs}/${data.limits.maxSpecs}`;
+    $('limSuites').textContent = `${data.current.suites}/${data.limits.maxSuites}`;
+    $('limWorkers').textContent = `${data.current.totalWorkers}/${data.limits.maxTotalWorkers}`;
+  } catch (_) {}
+}
+
+async function stopRun(runId) {
+  try {
+    const data = await fetch(`/api/runs/${runId}/stop`, { method: 'POST' }).then(r => r.json());
+    if (!data.ok) throw new Error(data.error);
+    showToast('Stop request sent…');
+    loadActiveRuns();
+  } catch (err) {
+    showToast('⚠ ' + err.message);
+  }
+}
+
+function iconFor(status) {
+  if (status === 'running') return { cls: 'running', svg: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/></svg>' };
+  if (status === 'done') return { cls: 'done', svg: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>' };
+  if (status === 'interrupted') return { cls: 'interrupted', svg: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>' };
+  return { cls: 'failed', svg: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' };
+}
+
+// ── Live view (v0.9.0, §ADR-2 / §6.C) ──────────────────────────────────
+// Additive to the existing polling progress bar above (untouched, still the
+// fallback for runs where the host project hasn't opted the hub-reporter
+// in — events.ndjson simply never appears and this whole layer stays idle).
+const liveState = new Map(); // runId -> { es, total, done, tests: [], logLines: [] }
+const expandedLiveRuns = new Set(); // runIds whose live panel is toggled open — survives the 3s re-render
+
+function ensureLiveState(runId) {
+  if (!liveState.has(runId)) {
+    liveState.set(runId, { es: null, total: 0, done: 0, tests: [], logLines: [] });
+  }
+  return liveState.get(runId);
+}
+
+function openLiveStream(runId) {
+  const state = ensureLiveState(runId);
+  if (state.es) return; // already streaming
+  let es;
+  try {
+    es = new EventSource(`/api/runs/${runId}/stream`);
+  } catch (_) {
+    return;
+  }
+  state.es = es;
+  es.onmessage = (msg) => {
+    if (!msg.data) return;
+    let event;
+    try { event = JSON.parse(msg.data); } catch (_) { return; }
+    handleLiveEvent(runId, event);
+  };
+  es.onerror = () => { /* browser auto-retries; the endpoint itself heartbeats/times out server-side */ };
+}
+
+function closeLiveStream(runId) {
+  const state = liveState.get(runId);
+  if (state && state.es) { try { state.es.close(); } catch (_) {} state.es = null; }
+}
+
+function handleLiveEvent(runId, event) {
+  const state = ensureLiveState(runId);
+  state.logLines.push(`[${event.type}] ${JSON.stringify(event)}`);
+  if (event.type === 'begin') {
+    state.total = event.totalTests || 0;
+  } else if (event.type === 'testEnd') {
+    state.done += 1;
+    state.tests.unshift({ title: event.title, status: event.status, error: event.error });
+    if (state.tests.length > 200) state.tests.length = 200; // cap growth on very long runs
+  } else if (event.type === 'end') {
+    closeLiveStream(runId); // run is over; console panel below is left intact for review
+  }
+  renderLivePanel(runId);
+}
+
+function renderLivePanel(runId) {
+  const panel = document.getElementById(`live-panel-${runId}`);
+  if (!panel) return; // card no longer rendered (run finished and dropped off Active Runs)
+  const state = ensureLiveState(runId);
+
+  const countEl = panel.querySelector('.live-count');
+  if (countEl) countEl.textContent = state.total ? `${state.done} / ${state.total} tests` : `${state.done} tests completed`;
+
+  const fill = document.getElementById(`fill-${runId}`);
+  if (fill && state.total) {
+    fill.classList.add('live');
+    fill.style.width = `${Math.min(100, Math.round((state.done / state.total) * 100))}%`;
+  }
+
+  const testsEl = panel.querySelector('.live-tests');
+  if (testsEl) {
+    testsEl.innerHTML = state.tests.map(t =>
+      `<div class="live-test-row ${t.status}"><span>${escapeHtml(t.title)}</span><span>${t.status}</span></div>`
+    ).join('') || '<div class="live-test-row">Waiting for the first test to finish…</div>';
+  }
+
+  const timelineEl = document.getElementById(`timeline-${runId}`);
+  if (timelineEl) {
+    // state.tests is unshift'd (newest first) — reverse for left-to-right
+    // completion order in the strip.
+    const inOrder = [...state.tests].reverse();
+    const cells = inOrder.map(t => `<div class="timeline-cell ${t.status}" title="${escapeHtml(t.title)}: ${t.status}"></div>`).join('');
+    const remaining = Math.max(0, (state.total || 0) - inOrder.length);
+    timelineEl.innerHTML = cells + '<div class="timeline-cell" title="Not yet completed"></div>'.repeat(remaining);
+  }
+
+  renderLiveConsole(runId);
+}
+
+function renderLiveConsole(runId) {
+  const state = ensureLiveState(runId);
+  const consoleEl = document.getElementById(`console-${runId}`);
+  if (!consoleEl) return;
+  const filterEl = document.getElementById(`filter-${runId}`);
+  const filterText = (filterEl && filterEl.value || '').toLowerCase();
+  const lines = filterText ? state.logLines.filter(l => l.toLowerCase().includes(filterText)) : state.logLines;
+  consoleEl.textContent = lines.join('\n');
+  consoleEl.scrollTop = consoleEl.scrollHeight;
+}
+
+function toggleLivePanel(runId) {
+  const panel = document.getElementById(`live-panel-${runId}`);
+  if (!panel) return;
+  const willShow = panel.hasAttribute('hidden');
+  if (willShow) {
+    panel.removeAttribute('hidden');
+    expandedLiveRuns.add(runId);
+    openLiveStream(runId);
+    renderLivePanel(runId);
+  } else {
+    panel.setAttribute('hidden', '');
+    expandedLiveRuns.delete(runId);
+  }
+}
+
+async function loadActiveRuns() {
+  try {
+    const data = await fetch('/api/runs').then(r => r.json());
+    if (!data.ok) return;
+    const running = data.runs.filter(r => r.status === 'running');
+    $('activeCount').textContent = `${running.length} running`;
+    if (!running.length) {
+      $('activeRunsBody').innerHTML = '<div class="empty">No active runs right now.</div>';
+      return;
+    }
+    $('activeRunsBody').innerHTML = running.map(r => {
+      const label = r.label.replace(/^\[(SUITE|SPEC)\]\s*/, '');
+      const elapsed = fmt(Date.now() - r.startTime);
+      return `<div class="run-card" style="flex-direction:column;align-items:stretch">
+        <div style="display:flex;align-items:center;gap:14px">
+          <div class="run-card-icon running"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/></svg></div>
+          <div class="run-card-info">
+            <div class="run-card-title">${label}</div>
+            <div class="run-card-sub">${r.suite} · ${r.modeLabel} · running ${elapsed}</div>
+            <div class="run-progress-track"><div class="run-progress-fill" id="fill-${r.id}"></div></div>
+          </div>
+          <div class="run-card-actions">
+            <button class="btn-secondary live-toggle" onclick="toggleLivePanel('${r.id}')" title="A terminal window with the live log is also opened automatically when this run started">Browser console (secondary)</button>
+            <button class="btn-secondary" onclick="stopRun('${r.id}')">Stop</button>
+          </div>
+        </div>
+        <div class="live-panel" id="live-panel-${r.id}" ${expandedLiveRuns.has(r.id) ? '' : 'hidden'}>
+          <div class="live-note">A terminal window tailing this run's live log is opened automatically on the machine running the hub — this in-browser panel is a secondary/optional view, kept for convenience when the terminal window isn't visible.</div>
+          <div class="timeline-strip-wrap">
+            <div class="timeline-strip-label">Run timeline (fills in as each test finishes)</div>
+            <div class="timeline-strip" id="timeline-${r.id}"></div>
+          </div>
+          <div class="live-count">0 tests completed</div>
+          <div class="live-tests"></div>
+          <div class="live-console-wrap">
+            <input class="live-filter" id="filter-${r.id}" placeholder="Filter console output…" oninput="renderLiveConsole('${r.id}')">
+            <pre class="live-console" id="console-${r.id}"></pre>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+    // Re-attach streaming + repaint accumulated state for any run whose panel
+    // is expanded — the innerHTML replace above wiped the DOM nodes, but
+    // liveState/expandedLiveRuns (module-level, not DOM) survived it.
+    running.forEach(r => {
+      if (expandedLiveRuns.has(r.id)) {
+        openLiveStream(r.id);
+        renderLivePanel(r.id);
+      }
+    });
+  } catch (_) {}
+}
+
+let cyclesCache = [];
+
+async function loadRecentRuns() {
+  try {
+    const data = await fetch('/api/runs/history?limit=20').then(r => r.json());
+    if (!data.ok) throw new Error(data.error);
+    const finished = data.runs.filter(r => r.status !== 'running');
+    if (!finished.length) {
+      $('recentRunsBody').innerHTML = '<div class="empty">No finished runs yet.</div>';
+      return;
+    }
+    $('recentRunsBody').innerHTML = finished.map(r => {
+      const icon = iconFor(r.status);
+      const label = (r.label || r.id).replace(/^\[(SUITE|SPEC)\]\s*/, '');
+      const cycleOptions = cyclesCache.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+      return `<div class="run-card" style="cursor:pointer" onclick="location.href='/results.html?id=${r.id}'">
+        <div class="run-card-icon ${icon.cls}">${icon.svg}</div>
+        <div class="run-card-info">
+          <div class="run-card-title">${label}</div>
+          <div class="run-card-sub">${r.suiteName || ''} · ${r.passed || 0}✓ ${r.failed || 0}✗ · ${fmtRelative(r.startTime)}</div>
+        </div>
+        <span class="badge ${r.status}">${r.status}</span>
+        ${cyclesCache.length ? `
+          <div class="run-card-actions" onclick="event.stopPropagation()">
+            <select id="cycle-pick-${r.id}" style="font-size:10px;padding:3px 5px;border-radius:6px;border:1px solid var(--border-md);background:var(--surface);color:var(--text-2)">
+              ${cycleOptions}
+            </select>
+            <button class="btn-tiny" onclick="addRunToCycle($('cycle-pick-${r.id}').value, '${r.id}')">+ Add</button>
+          </div>` : ''}
+      </div>`;
+    }).join('');
+  } catch (err) {
+    $('recentRunsBody').innerHTML = `<div class="empty">⚠ ${err.message}</div>`;
+  }
+}
+
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+}
+
+async function loadCycles() {
+  try {
+    const data = await fetch('/api/cycles').then(r => r.json());
+    if (!data.ok) throw new Error(data.error);
+    cyclesCache = data.cycles;
+    renderCycles(data.cycles);
+    loadRecentRuns(); // refresh so the "Add to cycle" dropdown reflects the latest cycle list
+  } catch (err) {
+    $('cyclesBody').innerHTML = `<div class="empty">⚠ ${err.message}</div>`;
+  }
+}
+
+// v1.9.0 — table layout (was a card list); columns limited to fields the
+// cycle actually carries (id, name, runIds, createdAt) — no Start/End
+// Date, Status, or Created By columns, since those aren't tracked data and
+// this pass isn't adding that (System Status / activity-log-style features
+// were explicitly scoped out for this round).
+function renderCycles(cycles) {
+  if (!cycles.length) {
+    $('cyclesBody').innerHTML = '<div class="empty">No regression cycles yet. Create one above, then add runs to it from the Recent Runs list.</div>';
+    return;
+  }
+  $('cyclesBody').innerHTML = `<table>
+    <thead><tr>
+      <th style="width:28%">Cycle name</th><th>Created</th><th>Runs</th><th>Pass rate</th><th>Tests</th><th style="text-align:right">Actions</th>
+    </tr></thead>
+    <tbody>
+      ${cycles.map(c => `
+        <tr>
+          <td class="col-mono">${escapeHtml(c.name)}</td>
+          <td style="color:var(--text-3)">${fmtDate(c.createdAt)}</td>
+          <td>${c.runCount}</td>
+          <td>${c.passRate === null ? '—' : c.passRate + '%'}</td>
+          <td>${c.totalTests}</td>
+          <td style="text-align:right"><button class="btn-tiny btn-danger" onclick="deleteCycle('${c.id}')">Delete</button></td>
+        </tr>
+        <tr><td colspan="6" style="padding:6px 12px 10px">
+          ${c.runs.length ? `<div style="display:flex;flex-direction:column;gap:4px">
+            ${c.runs.map(r => `
+              <div style="display:flex;align-items:center;justify-content:space-between;font-size:11px;padding:4px 8px;background:var(--surface-2);border-radius:6px">
+                <a href="/results.html?id=${r.id}" style="color:var(--text-2);text-decoration:none;font-family:var(--mono)">${escapeHtml((r.label || r.id).replace(/^\[(SUITE|SPEC)\]\s*/, ''))}</a>
+                <span style="display:flex;align-items:center;gap:8px">
+                  <span style="color:var(--text-4)">${r.passed || 0}✓ ${r.failed || 0}✗</span>
+                  <button class="btn-tiny" onclick="removeRunFromCycle('${c.id}', '${r.id}')">Remove</button>
+                </span>
+              </div>`).join('')}
+          </div>` : '<div style="font-size:11px;color:var(--text-4)">No runs added yet.</div>'}
+        </td></tr>`).join('')}
+    </tbody>
+  </table>`;
+}
+
+async function createCycle() {
+  const name = $('newCycleName').value.trim();
+  if (!name) { showToast('Enter a cycle name first'); return; }
+  try {
+    const data = await fetch('/api/cycles', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) }).then(r => r.json());
+    if (!data.ok) throw new Error(data.error);
+    $('newCycleName').value = '';
+    showToast(`Cycle "${name}" created`);
+    loadCycles();
+  } catch (err) {
+    showToast('⚠ ' + err.message);
+  }
+}
+
+async function addRunToCycle(cycleId, runId) {
+  if (!cycleId) { showToast('Create a cycle first'); return; }
+  try {
+    const data = await fetch(`/api/cycles/${cycleId}/runs`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ runId }) }).then(r => r.json());
+    if (!data.ok) throw new Error(data.error);
+    showToast('Added to cycle');
+    loadCycles();
+  } catch (err) {
+    showToast('⚠ ' + err.message);
+  }
+}
+
+async function removeRunFromCycle(cycleId, runId) {
+  try {
+    const data = await fetch(`/api/cycles/${cycleId}/runs/${runId}`, { method: 'DELETE' }).then(r => r.json());
+    if (!data.ok) throw new Error(data.error);
+    loadCycles();
+  } catch (err) {
+    showToast('⚠ ' + err.message);
+  }
+}
+
+async function deleteCycle(cycleId) {
+  if (!confirm('Delete this cycle? Its runs are not deleted, only the grouping.')) return;
+  try {
+    const data = await fetch(`/api/cycles/${cycleId}`, { method: 'DELETE' }).then(r => r.json());
+    if (!data.ok) throw new Error(data.error);
+    loadCycles();
+  } catch (err) {
+    showToast('⚠ ' + err.message);
+  }
+}
+
+// Chart.js bakes colors in at draw time via cssVar() — repaint on theme
+// toggle, same pattern as report-center.html.
+document.addEventListener('mdg:themechange', () => {
+  loadExecutionStats();
+  loadWorkersCapacity();
+});
+
+function onShellReady() {
+  loadLimits();
+  loadActiveRuns();
+  loadCycles();
+  loadExecutionStats();
+  loadWorkersCapacity();
+  loadTopFailingSuites();
+  setInterval(() => { loadLimits(); loadActiveRuns(); }, 3000);
+}
+initShell('execution');
+</script>
+</body>
+</html>
